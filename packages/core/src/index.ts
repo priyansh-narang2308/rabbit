@@ -18,6 +18,7 @@ export * from "./agent/multi-env-orchestrator";
 export * from "./audit/trail";
 export * from "./audit/replay-parser";
 export * from "./audit/evidence";
+export * from "./llm/groq";
 export * from "./demo/pricing-research";
 export * from "./demo/form-autofill";
 export * from "./demo/persistent-identity";

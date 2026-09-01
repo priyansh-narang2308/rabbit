@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { Action } from "./planner";
 import type { ExecutorResult } from "./executor";
+import { groqChat, parseJsonObject } from "../llm/groq";
 
 export const EvaluationSchema = z.object({
   success: z.boolean(),
-  reasoning: z.string(),
+  reasoning: z.string().default(""),
 });
 
 export type Evaluation = z.infer<typeof EvaluationSchema>;
@@ -21,10 +22,9 @@ export class Evaluator {
   private baseUrl: string;
 
   constructor(config: EvaluatorConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
-    this.apiKey = key;
-    this.model = config.model || "qwen3.5:2b";
-    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
+    this.apiKey = config.apiKey || process.env.GROQ_API_KEY || "";
+    this.model = config.model || "";
+    this.baseUrl = config.baseUrl || "";
   }
 
   async evaluate(action: Action, result: ExecutorResult): Promise<Evaluation> {
@@ -68,32 +68,16 @@ Current URL: ${result.url}`;
       },
     ];
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
-        "X-Title": "Rabbit",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_tokens: 512,
-        temperature: 0.1,
-      }),
+    const content = await groqChat({
+      messages,
+      apiKey: this.apiKey,
+      model: this.model || undefined,
+      maxTokens: 500,
+      temperature: 0.0,
+      vision: true,
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter API error: ${await response.text()}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
-    const parsed = JSON.parse(cleanContent);
-    
+    const parsed = parseJsonObject<Evaluation>(content);
     return EvaluationSchema.parse(parsed);
   }
 }

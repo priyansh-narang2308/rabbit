@@ -1,51 +1,52 @@
 import { z } from "zod";
+import { groqChat, parseAction } from "../llm/groq";
 
 export const ActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("navigate"),
     url: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("click"),
     selector: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("type"),
     selector: z.string(),
     value: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("scroll"),
     direction: z.enum(["up", "down"]),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("evaluate"),
     script: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("wait"),
     ms: z.number(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("extract"),
     selector: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("done"),
     result: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
   z.object({
     type: z.literal("error"),
     message: z.string(),
-    reasoning: z.string(),
+    reasoning: z.string().default(""),
   }),
 ]);
 
@@ -129,10 +130,9 @@ export class Planner {
   private maxTokens: number;
 
   constructor(config: PlannerConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
-    this.apiKey = key;
-    this.model = config.model || "qwen3.5:2b";
-    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
+    this.apiKey = config.apiKey || process.env.GROQ_API_KEY || "";
+    this.model = config.model || "";
+    this.baseUrl = config.baseUrl || "";
     this.maxTokens = config.maxTokens || 1024;
   }
 
@@ -155,41 +155,16 @@ export class Planner {
       },
     ];
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
-        "X-Title": "Rabbit",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_tokens: this.maxTokens,
-        temperature: 0.2,
-      }),
+    const content = await groqChat({
+      messages,
+      apiKey: this.apiKey,
+      model: this.model || undefined,
+      maxTokens: this.maxTokens,
+      temperature: 0.1,
+      vision: true,
     });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `OpenRouter API error (${response.status}): ${errorBody}`,
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content in LLM response");
-    }
-
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
-    const parsed = JSON.parse(cleanContent);
-    const validated = ActionSchema.parse(parsed);
-
-    return validated;
+    const parsed = parseAction<Partial<Action>>(content);
+    return ActionSchema.parse(parsed);
   }
 }

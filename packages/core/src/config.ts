@@ -26,8 +26,8 @@ export const defaultConfig: RabbitConfig = {
     maxRetries: 3,
   },
   llm: {
-    model: "gemma4:e2b",
-    visionModel: "qwen3.5:2b",
+    model: "openai/gpt-oss-120b",
+    visionModel: "qwen/qwen3.8-27b",
     temperature: 0.1,
     maxTokens: 1024,
   },
