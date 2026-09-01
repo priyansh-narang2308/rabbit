@@ -34,6 +34,7 @@ export class AgentOrchestrator {
 
   async run(): Promise<string> {
     const maxSteps = this.config.maxSteps || 50;
+    let consecutiveFailures = 0;
 
     for (let stepIndex = 0; stepIndex < maxSteps; stepIndex++) {
       const domSnapshot = await this.executor.getDOM();
@@ -68,10 +69,19 @@ export class AgentOrchestrator {
         throw new Error(`Agent halted with error: ${action.message}`);
       }
 
-      if (!evalResult.success) {
-        console.warn(
-          `Step ${stepIndex} verification failed: ${evalResult.reasoning}`,
-        );
+      if (!execResult.success || !evalResult.success) {
+        consecutiveFailures++;
+        const failReason = execResult.error || evalResult.reasoning;
+        
+        console.warn(`Step ${stepIndex} failed (${consecutiveFailures}/3): ${failReason}`);
+        
+        if (consecutiveFailures >= 3) {
+          throw new Error(`Task aborted after 3 consecutive failures. Last error: ${failReason}`);
+        }
+
+        this.history[this.history.length - 1].reasoning += ` [FAILED: ${failReason}]`;
+      } else {
+        consecutiveFailures = 0;
       }
     }
 
