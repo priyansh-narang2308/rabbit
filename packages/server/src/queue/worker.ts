@@ -3,6 +3,7 @@ import { db } from "../db";
 import { tasks, runs, auditEntries } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { StorageManager } from "../storage";
+import { Redis } from "ioredis";
 import {
   BrowserManager,
   AgentOrchestrator,
@@ -14,6 +15,8 @@ const connection = {
   host: process.env.REDIS_HOST || "localhost",
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
 };
+
+const pub = new Redis(connection);
 
 export const taskWorker = new Worker(
   "agent-tasks",
@@ -89,6 +92,11 @@ export const taskWorker = new Worker(
             durationMs: entry.durationMs,
             timestamp: entry.timestamp,
           });
+
+          await pub.publish(
+            `task-events:${taskId}`,
+            JSON.stringify({ ...entry, screenshotPath }),
+          );
         },
       });
 

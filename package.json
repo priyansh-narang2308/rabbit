@@ -8,5 +8,8 @@
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
   }
 }
