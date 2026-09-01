@@ -4,6 +4,14 @@ import React, { useState, useEffect } from "react";
 import { X, Send, Globe, Shield, User, Loader2 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
 export function TaskSubmitForm({
   isOpen,
   onClose,
@@ -58,28 +66,17 @@ export function TaskSubmitForm({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      <div className="relative w-full max-w-md bg-[#0a0a0a] border-l border-white/10 h-full shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out">
-        <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">New Task</h2>
-            <p className="text-sm text-gray-400">Deploy an autonomous agent.</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="w-100 sm:w-135 bg-[#0a0a0a] border-white/10 p-0 flex flex-col">
+        <SheetHeader className="p-6 border-b border-white/10 bg-white/5">
+          <SheetTitle className="text-xl font-bold tracking-tight text-white">
+            New Task
+          </SheetTitle>
+          <SheetDescription className="text-gray-400">
+            Deploy an autonomous agent.
+          </SheetDescription>
+        </SheetHeader>
 
         <form
           onSubmit={handleSubmit}
@@ -165,11 +162,11 @@ export function TaskSubmitForm({
           </div>
         </form>
 
-        <div className="p-6 border-t border-white/10 bg-white/5">
+        <div className="p-6 border-t border-white/10 bg-white/5 mt-auto">
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !description}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(147,51,234,0.3)]"
+            className="w-full bg-purple-600 cursor-pointer hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(147,51,234,0.3)]"
           >
             {isSubmitting ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -179,7 +176,7 @@ export function TaskSubmitForm({
             {isSubmitting ? "Deploying..." : "Deploy Agent"}
           </button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

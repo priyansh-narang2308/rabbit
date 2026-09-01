@@ -2,6 +2,8 @@ import React from "react";
 import { fetchProfiles } from "@/lib/api";
 import { UserCircle, KeyRound, Calendar, ShieldCheck } from "lucide-react";
 
+import { CreateIdentityDrawer } from "@/components/identities/create-drawer";
+
 export default async function ProfilesPage() {
   let profiles = [];
   try {
@@ -20,9 +22,7 @@ export default async function ProfilesPage() {
             state).
           </p>
         </div>
-        <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]">
-          Create Identity
-        </button>
+        <CreateIdentityDrawer />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

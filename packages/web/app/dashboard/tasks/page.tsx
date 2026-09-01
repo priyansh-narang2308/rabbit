@@ -66,7 +66,7 @@ export default function TasksPage() {
           </div>
           <button
             onClick={() => setIsFormOpen(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+            className="bg-purple-600 hover:bg-purple-700 cursor-pointer text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
           >
             <Plus className="w-4 h-4" />
             New Task
