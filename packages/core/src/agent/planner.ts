@@ -1,0 +1,197 @@
+import { z } from "zod";
+
+export const ActionSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("navigate"),
+    url: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("click"),
+    selector: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("type"),
+    selector: z.string(),
+    value: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("scroll"),
+    direction: z.enum(["up", "down"]),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("evaluate"),
+    script: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("wait"),
+    ms: z.number(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("extract"),
+    selector: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("done"),
+    result: z.string(),
+    reasoning: z.string(),
+  }),
+  z.object({
+    type: z.literal("error"),
+    message: z.string(),
+    reasoning: z.string(),
+  }),
+]);
+
+export type Action = z.infer<typeof ActionSchema>;
+
+export interface PlannerContext {
+  task: string;
+  currentUrl: string;
+  screenshotBase64: string;
+  domSnapshot: string;
+  history: Action[];
+  stepIndex: number;
+  maxSteps: number;
+}
+
+export interface PlannerConfig {
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
+  maxTokens?: number;
+}
+
+const SYSTEM_PROMPT = `You are Rabbit, an AI agent that controls a web browser to complete tasks.
+
+You receive:
+- The user's task objective
+- A screenshot of the current page (as an image)
+- A simplified DOM snapshot of the current page
+- Your action history so far
+
+You must respond with a single JSON action. Available actions:
+- navigate: Go to a URL. Use when you need to visit a new page.
+- click: Click an element by CSS selector. Use for buttons, links, inputs.
+- type: Type text into an input by CSS selector. Always click/focus first if needed.
+- scroll: Scroll the page up or down. Use when content is below the fold.
+- evaluate: Run arbitrary JavaScript on the page. Use sparingly, for complex extractions.
+- wait: Wait for a specified number of milliseconds. Use after actions that trigger loading.
+- extract: Extract text content from an element by CSS selector.
+- done: The task is complete. Include the final result/answer.
+- error: Something went wrong and you cannot recover.
+
+Rules:
+1. Always include "reasoning" explaining WHY you chose this action.
+2. Use precise CSS selectors. Prefer [data-*], #id, then .class selectors.
+3. If a page is loading, use "wait" with a reasonable ms value.
+4. If you've been stuck for 3+ steps, try a different approach.
+5. Never repeat the exact same action twice in a row.
+6. When the task is fully done, use "done" immediately.
+
+Respond with ONLY valid JSON. No markdown, no explanation outside the JSON.`;
+
+function buildUserPrompt(ctx: PlannerContext): string {
+  const historyStr =
+    ctx.history.length > 0
+      ? ctx.history
+          .map(
+            (a, i) =>
+              `Step ${i + 1}: ${a.type}${a.type === "click" ? ` → ${a.selector}` : ""}${a.type === "navigate" ? ` → ${a.url}` : ""}${a.type === "type" ? ` → ${a.selector} = "${a.value}"` : ""} | ${a.reasoning}`,
+          )
+          .join("\n")
+      : "No actions taken yet.";
+
+  return `TASK: ${ctx.task}
+
+CURRENT URL: ${ctx.currentUrl}
+STEP: ${ctx.stepIndex}/${ctx.maxSteps}
+
+ACTION HISTORY:
+${historyStr}
+
+DOM SNAPSHOT (simplified):
+${ctx.domSnapshot.slice(0, 8000)}
+
+Decide the next action. Respond with ONLY a JSON object.`;
+}
+
+export class Planner {
+  private apiKey: string;
+  private model: string;
+  private baseUrl: string;
+  private maxTokens: number;
+
+  constructor(config: PlannerConfig = {}) {
+    const key = config.apiKey || process.env.OPENROUTER_API_KEY;
+    if (!key) {
+      throw new Error("OPENROUTER_API_KEY is required to initialize Planner");
+    }
+    this.apiKey = key;
+    this.model = config.model || "meta-llama/llama-3.2-90b-vision-instruct:free";
+    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+    this.maxTokens = config.maxTokens || 1024;
+  }
+
+  async plan(ctx: PlannerContext): Promise<Action> {
+    const userPrompt = buildUserPrompt(ctx);
+
+    const messages: any[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:image/png;base64,${ctx.screenshotBase64}`,
+            },
+          },
+          { type: "text", text: userPrompt },
+        ],
+      },
+    ];
+
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
+        "X-Title": "Rabbit",
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages,
+        max_tokens: this.maxTokens,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(
+        `OpenRouter API error (${response.status}): ${errorBody}`,
+      );
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      throw new Error("No content in LLM response");
+    }
+
+    const parsed = JSON.parse(content);
+    const validated = ActionSchema.parse(parsed);
+
+    return validated;
+  }
+}
