@@ -2,7 +2,7 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 export async function fetchStatus() {
-  const res = await fetch(`${API_BASE_URL}`, { cache: "no-store" });
+  const res = await fetch(`${API_BASE_URL}/status`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch status");
   return res.json();
 }

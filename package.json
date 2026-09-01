@@ -5,11 +5,14 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "concurrently \"npm run dev -w @rabbit/core\" \"npm run dev -w @rabbit/server\" \"npm run dev -w @rabbit/web\"",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },
   "allowScripts": {
-    "better-sqlite3@11.10.0": true
+    "better-sqlite3": true
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

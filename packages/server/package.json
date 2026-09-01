@@ -2,6 +2,7 @@
   "name": "@rabbit/server",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -18,11 +19,11 @@
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "@rabbit/core": "*",
-    "better-sqlite3": "^11.1.2",
+    "better-sqlite3": "^13.0.3",
     "bullmq": "^5.12.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.33.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.5.8",
     "ioredis": "^5.11.1",
     "zod": "^3.23.8"
@@ -32,7 +33,7 @@
     "@types/cors": "^2.8.17",
     "@types/ioredis": "^4.28.10",
     "@types/node": "^22.5.0",
-    "drizzle-kit": "^0.24.2",
+    "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.1",
     "typescript": "^5.5.4"
   }
