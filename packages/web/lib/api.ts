@@ -42,3 +42,27 @@ export async function fetchReplay(id: string) {
   if (!res.ok) throw new Error("Failed to fetch replay");
   return res.json();
 }
+
+export async function launchPricingResearchDemo(payload: {
+  subject: string;
+  competitors: Array<{
+    name: string;
+    url: string;
+    proxyCountry: string;
+  }>;
+  stealthEnabled?: boolean;
+  captchaEnabled?: boolean;
+  recordingEnabled?: boolean;
+}) {
+  const res = await fetch(`${API_BASE_URL}/demo/pricing-research`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to launch pricing research demo");
+  }
+  return res.json();
+}

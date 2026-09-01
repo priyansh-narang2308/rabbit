@@ -22,6 +22,7 @@ import {
   User,
   PanelLeft,
   Terminal,
+  FlaskConical,
 } from "lucide-react";
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
@@ -61,6 +62,16 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
                     className="cursor-pointer"
                   >
                     Tasks
+                  </AnimatedSidebarMenuButton>
+                </AnimatedSidebarMenuItem>
+                <AnimatedSidebarMenuItem>
+                  <AnimatedSidebarMenuButton
+                    href="/dashboard/demo"
+                    isActive={pathname?.startsWith("/dashboard/demo")}
+                    icon={<FlaskConical className="w-4 h-4 cursor-pointer" />}
+                    className="cursor-pointer"
+                  >
+                    Demo
                   </AnimatedSidebarMenuButton>
                 </AnimatedSidebarMenuItem>
                 <AnimatedSidebarMenuItem>

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { tasks } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
+import { enqueueTask } from "../queue/queue";
 
 const tasksRouter = new Hono();
 
@@ -48,6 +49,19 @@ tasksRouter.post("/", async (c) => {
       updatedAt: now,
     })
     .returning();
+
+  try {
+    await enqueueTask(id);
+  } catch (err: any) {
+    await db
+      .update(tasks)
+      .set({ status: "failed", errorMessage: err.message, updatedAt: new Date().toISOString() })
+      .where(eq(tasks.id, id));
+    return c.json(
+      { error: "Task created but could not be enqueued", details: err.message },
+      500,
+    );
+  }
 
   return c.json(newTask, 201);
 });

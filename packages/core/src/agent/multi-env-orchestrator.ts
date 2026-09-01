@@ -25,6 +25,13 @@ export interface MultiEnvOrchestratorConfig {
     captcha?: boolean;
     recording?: boolean;
   };
+  /**
+   * Optional per-browser-phase proxy countries, indexed by phase number.
+   * When set for a given phase, that browser phase overrides the shared
+   * `browserLaunchOptions.proxyCountry` with its own geo-proxy. This enables
+   * multi-geo scenarios (e.g. browsing the same market from different countries).
+   */
+  perPhaseProxyCountry?: Record<number, string>;
 }
 
 export interface MultiEnvResult {
@@ -115,7 +122,9 @@ export class MultiEnvOrchestrator {
     try {
       const { browser } = await browserManager.launchSession({
         profileId: this.config.browserLaunchOptions?.profileId,
-        proxyCountry: this.config.browserLaunchOptions?.proxyCountry,
+        proxyCountry:
+          this.config.perPhaseProxyCountry?.[phaseIndex] ??
+          this.config.browserLaunchOptions?.proxyCountry,
         stealth: this.config.browserLaunchOptions?.stealth ?? true,
         captcha: this.config.browserLaunchOptions?.captcha ?? true,
         recording: this.config.browserLaunchOptions?.recording ?? true,

@@ -142,6 +142,8 @@ export const taskWorker = new Worker(
             captcha: taskRecord.captchaEnabled ?? true,
             recording: taskRecord.recordingEnabled ?? true,
           },
+          perPhaseProxyCountry:
+            (job.data as any)?.perPhaseProxyCountry || undefined,
         });
 
         const multiResult = await orchestrator.run();

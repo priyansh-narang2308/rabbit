@@ -8,6 +8,7 @@ import { tasks } from "./db/schema";
 import { tasksRouter } from "./routes/tasks";
 import { runsRouter } from "./routes/runs";
 import { profilesRouter } from "./routes/profiles";
+import { demoRouter } from "./routes/demo";
 import { eventsRouter } from "./queue/events";
 import { statusRouter } from "./routes/status";
 import { errorHandler } from "./middleware/error-handler";
@@ -22,6 +23,7 @@ app.onError(errorHandler);
 app.route("/api/tasks", tasksRouter);
 app.route("/api/runs", runsRouter);
 app.route("/api/profiles", profilesRouter);
+app.route("/api/demo", demoRouter);
 app.route("/api/events", eventsRouter);
 app.route("/api", statusRouter);
 

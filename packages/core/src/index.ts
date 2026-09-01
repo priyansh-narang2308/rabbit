@@ -18,5 +18,6 @@ export * from "./agent/multi-env-orchestrator";
 export * from "./audit/trail";
 export * from "./audit/replay-parser";
 export * from "./audit/evidence";
+export * from "./demo/pricing-research";
 export * from "./types";
 export * from "./config";
