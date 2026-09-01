@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Action } from "./planner";
 import type { ExecutorResult } from "./executor";
-import { groqChat, parseJsonObject } from "../llm/groq";
+import { ollamaChat, parseJsonObject } from "../llm/ollama";
 
 export const EvaluationSchema = z.object({
   success: z.boolean(),
@@ -68,7 +68,7 @@ Current URL: ${result.url}`;
       },
     ];
 
-    const content = await groqChat({
+    const content = await ollamaChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,

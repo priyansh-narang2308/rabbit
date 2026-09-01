@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { groqChat, parseAction } from "../llm/groq";
+import { ollamaChat, parseAction } from "../llm/ollama";
 
 export const ActionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -155,7 +155,7 @@ export class Planner {
       },
     ];
 
-    const content = await groqChat({
+    const content = await ollamaChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,

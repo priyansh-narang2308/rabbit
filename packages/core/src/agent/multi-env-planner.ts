@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { groqChat, parseJsonObject } from "../llm/groq";
+import { ollamaChat, parseJsonObject } from "../llm/ollama";
 
 export const MultiEnvStepSchema = z.object({
   environment: z.enum(["browser", "sandbox", "desktop"]),
@@ -63,7 +63,7 @@ export class MultiEnvPlanner {
       { role: "user", content: userPrompt },
     ];
 
-    const content = await groqChat({
+    const content = await ollamaChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,
