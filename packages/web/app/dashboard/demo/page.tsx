@@ -10,10 +10,19 @@ import {
   Download,
   XCircle,
   FlaskConical,
+  FileText,
+  CheckCircle2,
+  FormInput,
 } from "lucide-react";
-import { API_BASE_URL, launchPricingResearchDemo } from "@/lib/api";
+import {
+  API_BASE_URL,
+  launchPricingResearchDemo,
+  launchFormAutofillDemo,
+} from "@/lib/api";
 
-const SCENARIO = {
+// ── Scenario Configs ─────────────────────────────────────────────────
+
+const PRICING_SCENARIO = {
   subject: "cloud storage plans",
   competitors: [
     {
@@ -34,6 +43,60 @@ const SCENARIO = {
   ],
 };
 
+const FORM_SCENARIO = {
+  formName: "Passport Application (Practice Form)",
+  startUrl: "https://www.jotform.com/form-templates/preview/220082532684050",
+  proxyCountry: "us",
+  steps: [
+    {
+      name: "Personal Information",
+      fields: [
+        { selector: "#first_name", label: "First Name", value: "John" },
+        { selector: "#last_name", label: "Last Name", value: "Doe" },
+        {
+          selector: "#email",
+          label: "Email",
+          value: "john.doe@example.com",
+        },
+        { selector: "#phone", label: "Phone", value: "+1 555-0100" },
+        {
+          selector: "#address",
+          label: "Address",
+          value: "123 Main St, San Francisco, CA 94105",
+        },
+      ],
+    },
+    {
+      name: "Passport Details",
+      fields: [
+        {
+          selector: "#passport_number",
+          label: "Passport Number",
+          value: "X12345678",
+        },
+        {
+          selector: "#date_of_birth",
+          label: "Date of Birth",
+          value: "01/15/1990",
+        },
+        { selector: "#nationality", label: "Nationality", value: "US" },
+        {
+          selector: "#issue_date",
+          label: "Issue Date",
+          value: "03/20/2020",
+        },
+        {
+          selector: "#expiry_date",
+          label: "Expiry Date",
+          value: "03/20/2030",
+        },
+      ],
+    },
+  ],
+};
+
+// ── Types ────────────────────────────────────────────────────────────
+
 type StepEvent = {
   type?: string;
   stepIndex?: number;
@@ -50,7 +113,57 @@ type StepEvent = {
   timestamp?: string;
 };
 
+type DemoTab = "pricing" | "form-autofill";
+
 export default function DemoPage() {
+  const [tab, setTab] = useState<DemoTab>("pricing");
+
+  return (
+    <div className="space-y-6 pb-12">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
+          <FlaskConical className="w-7 h-7 text-purple-400" />
+          Demo Scenarios
+        </h1>
+        <p className="text-gray-400">
+          One-click demo scenarios showcasing Rabbit&apos;s agent capabilities.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab("pricing")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer flex items-center gap-2 ${
+            tab === "pricing"
+              ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+              : "bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10"
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          Competitor Pricing
+        </button>
+        <button
+          onClick={() => setTab("form-autofill")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer flex items-center gap-2 ${
+            tab === "form-autofill"
+              ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+              : "bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10"
+          }`}
+        >
+          <FormInput className="w-4 h-4" />
+          Form Autofill
+        </button>
+      </div>
+
+      {tab === "pricing" && <PricingResearchTab />}
+      {tab === "form-autofill" && <FormAutofillTab />}
+    </div>
+  );
+}
+
+// ── Pricing Research Tab ─────────────────────────────────────────────
+
+function PricingResearchTab() {
   const [launching, setLaunching] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("idle");
@@ -66,8 +179,8 @@ export default function DemoPage() {
     setStatus("idle");
     try {
       const res = await launchPricingResearchDemo({
-        subject: SCENARIO.subject,
-        competitors: SCENARIO.competitors,
+        subject: PRICING_SCENARIO.subject,
+        competitors: PRICING_SCENARIO.competitors,
         stealthEnabled: true,
         captchaEnabled: true,
         recordingEnabled: true,
@@ -81,19 +194,15 @@ export default function DemoPage() {
     }
   };
 
-  // Poll task status + stream SSE for live updates
   useEffect(() => {
     if (!taskId) return;
-
     const evtSource = new EventSource(`${API_BASE_URL}/events/${taskId}`);
-
     evtSource.addEventListener("step", (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         setSteps((prev) => [data, ...prev.slice(0, 49)]);
       } catch {}
     });
-
     const poll = setInterval(async () => {
       try {
         const t = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
@@ -115,7 +224,6 @@ export default function DemoPage() {
         }
       } catch {}
     }, 2500);
-
     return () => {
       clearInterval(poll);
       evtSource.close();
@@ -133,18 +241,13 @@ export default function DemoPage() {
   }, [result]);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6">
       <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-2">
-            <FlaskConical className="w-7 h-7 text-purple-400" />
-            Demo Scenario
-          </h1>
-          <p className="text-gray-400">
-            One-click competitor pricing research — 3 different geo-proxies,
-            extraction, then sandbox processing into a comparison table.
-          </p>
-        </div>
+        <p className="text-gray-400 max-w-xl">
+          Browses 3 competitor websites with different geo-proxies, extracts
+          pricing data, then processes it in a Solari sandbox into a comparison
+          table.
+        </p>
         <button
           onClick={handleLaunch}
           disabled={launching || status === "running" || status === "queued"}
@@ -162,39 +265,12 @@ export default function DemoPage() {
         </button>
       </div>
 
-      {/* Status banner */}
-      {taskId && status !== "idle" && (
-        <div
-          className={`px-4 py-3 rounded-xl border flex items-center justify-between ${
-            status === "completed"
-              ? "border-green-500/50 bg-green-500/10 text-green-300"
-              : status === "failed"
-                ? "border-red-500/50 bg-red-500/10 text-red-300"
-                : status === "running"
-                  ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
-                  : "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
-          }`}
-        >
-          <span className="font-medium capitalize">
-            {status === "running"
-              ? `Running — ${steps[0]?.actionType || "working"}...`
-              : `${status}`}
-          </span>
-          <span className="font-mono text-xs opacity-80">
-            Task: {taskId.substring(0, 8)}...
-          </span>
-        </div>
-      )}
-
-      {error && (
-        <div className="px-4 py-3 rounded-xl border border-red-500/50 bg-red-500/10 text-red-300 flex items-center gap-2">
-          <XCircle className="w-4 h-4" /> {error}
-        </div>
-      )}
+      <StatusBanner taskId={taskId} status={status} steps={steps} />
+      {error && <ErrorBanner error={error} />}
 
       {/* Scenario plan */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {SCENARIO.competitors.map((comp, i) => (
+        {PRICING_SCENARIO.competitors.map((comp, i) => (
           <div
             key={comp.name}
             className="p-6 rounded-xl border border-white/10 bg-white/5 flex flex-col gap-3"
@@ -236,49 +312,7 @@ export default function DemoPage() {
         </div>
       </div>
 
-      {/* Live steps */}
-      {steps.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
-          <div className="h-12 border-b border-white/10 bg-white/5 flex items-center px-4 font-mono text-sm text-gray-400">
-            <FlaskConical className="w-4 h-4 mr-2" />
-            Live Agent Steps
-          </div>
-          <div className="p-4 space-y-2 font-mono text-sm max-h-80 overflow-y-auto">
-            {steps.map((s, idx) => (
-              <div
-                key={`${s.timestamp}-${idx}`}
-                className="flex gap-3 p-2 rounded hover:bg-white/5 transition-colors"
-              >
-                <span className="text-gray-500 shrink-0 w-16">
-                  {s.timestamp
-                    ? new Date(s.timestamp).toLocaleTimeString()
-                    : ""}
-                </span>
-                <span
-                  className={`shrink-0 font-bold uppercase ${
-                    s.type === "phase_start"
-                      ? "text-purple-400"
-                      : s.type === "phase_complete"
-                        ? "text-green-400"
-                        : s.actionType === "error"
-                          ? "text-red-400"
-                          : "text-blue-400"
-                  }`}
-                >
-                  {s.type === "phase_start"
-                    ? `Phase ${s.environment}`
-                    : s.type === "phase_complete"
-                      ? "Complete"
-                      : s.actionType}
-                </span>
-                <span className="text-gray-300 flex-1">
-                  {s.objective || s.target || s.reasoning || s.value || ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <LiveSteps steps={steps} />
 
       {/* Comparison table result */}
       {result && (
@@ -293,6 +327,278 @@ export default function DemoPage() {
     </div>
   );
 }
+
+// ── Form Autofill Tab ────────────────────────────────────────────────
+
+function FormAutofillTab() {
+  const [launching, setLaunching] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("idle");
+  const [steps, setSteps] = useState<StepEvent[]>([]);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLaunch = async () => {
+    setLaunching(true);
+    setError(null);
+    setSteps([]);
+    setResult(null);
+    setStatus("idle");
+    try {
+      const res = await launchFormAutofillDemo({
+        formName: FORM_SCENARIO.formName,
+        startUrl: FORM_SCENARIO.startUrl,
+        steps: FORM_SCENARIO.steps,
+        proxyCountry: FORM_SCENARIO.proxyCountry,
+        stealthEnabled: true,
+        captchaEnabled: true,
+        recordingEnabled: true,
+      });
+      setTaskId(res.id);
+      setStatus("queued");
+    } catch (e: any) {
+      setError(e.message || "Failed to launch demo");
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!taskId) return;
+    const evtSource = new EventSource(`${API_BASE_URL}/events/${taskId}`);
+    evtSource.addEventListener("step", (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        setSteps((prev) => [data, ...prev.slice(0, 49)]);
+      } catch {}
+    });
+    const poll = setInterval(async () => {
+      try {
+        const t = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+          cache: "no-store",
+        }).then((r) => r.json());
+        setStatus(t.status);
+        if (t.status === "completed") {
+          setResult(t.result || "Task completed successfully.");
+          clearInterval(poll);
+          evtSource.close();
+        } else if (t.status === "failed") {
+          setError(t.errorMessage || "Demo failed");
+          clearInterval(poll);
+          evtSource.close();
+        }
+      } catch {}
+    }, 2500);
+    return () => {
+      clearInterval(poll);
+      evtSource.close();
+    };
+  }, [taskId]);
+
+  const totalFields = FORM_SCENARIO.steps.reduce(
+    (acc, s) => acc + s.fields.length,
+    0,
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-end">
+        <p className="text-gray-400 max-w-xl">
+          Navigates to a multi-step web form, fills every field from a
+          pre-defined spec, handles captchas, and submits. The full audit trail
+          records every field value.
+        </p>
+        <button
+          onClick={handleLaunch}
+          disabled={launching || status === "running" || status === "queued"}
+          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+        >
+          {launching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Launching...
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4" /> Launch Demo
+            </>
+          )}
+        </button>
+      </div>
+
+      <StatusBanner taskId={taskId} status={status} steps={steps} />
+      {error && <ErrorBanner error={error} />}
+
+      {/* Form Overview */}
+      <div className="p-6 rounded-xl border border-white/10 bg-white/5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="font-bold text-white">{FORM_SCENARIO.formName}</h3>
+            <p className="text-xs text-gray-500">
+              {FORM_SCENARIO.steps.length} steps · {totalFields} fields · Proxy:{" "}
+              {FORM_SCENARIO.proxyCountry.toUpperCase()}
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-400 truncate">
+          {FORM_SCENARIO.startUrl}
+        </p>
+      </div>
+
+      {/* Steps & Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {FORM_SCENARIO.steps.map((step, i) => (
+          <div
+            key={step.name}
+            className="p-6 rounded-xl border border-white/10 bg-white/5 space-y-4"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-300">
+                {i + 1}
+              </span>
+              <h3 className="font-bold text-white">{step.name}</h3>
+            </div>
+            <div className="space-y-2">
+              {step.fields.map((f) => (
+                <div key={f.label} className="flex items-center gap-3 text-sm">
+                  <FormInput className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span className="text-gray-400 w-28 shrink-0">{f.label}</span>
+                  <span className="text-white font-mono text-xs bg-white/5 px-2 py-1 rounded">
+                    {f.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Audit emphasis */}
+      <div className="p-6 rounded-xl border border-green-500/30 bg-green-500/10 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+          <CheckCircle2 className="w-5 h-5 text-green-400" />
+        </div>
+        <div>
+          <h3 className="font-bold text-white">Full Audit Trail</h3>
+          <p className="text-sm text-gray-400">
+            Every keystroke, every field value, every click is captured in the
+            audit trail with before/after screenshots. Complete evidence chain
+            for compliance.
+          </p>
+        </div>
+      </div>
+
+      <LiveSteps steps={steps} />
+
+      {/* Result */}
+      {result && (
+        <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <h2 className="text-xl font-bold text-white">
+              Form Submitted Successfully
+            </h2>
+          </div>
+          <pre className="whitespace-pre-wrap font-mono text-sm text-gray-300 bg-black/40 rounded-lg p-4 max-h-60 overflow-y-auto">
+            {result}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shared Components ────────────────────────────────────────────────
+
+function StatusBanner({
+  taskId,
+  status,
+  steps,
+}: {
+  taskId: string | null;
+  status: string;
+  steps: StepEvent[];
+}) {
+  if (!taskId || status === "idle") return null;
+  return (
+    <div
+      className={`px-4 py-3 rounded-xl border flex items-center justify-between ${
+        status === "completed"
+          ? "border-green-500/50 bg-green-500/10 text-green-300"
+          : status === "failed"
+            ? "border-red-500/50 bg-red-500/10 text-red-300"
+            : status === "running"
+              ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
+              : "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
+      }`}
+    >
+      <span className="font-medium capitalize">
+        {status === "running"
+          ? `Running — ${steps[0]?.actionType || "working"}...`
+          : `${status}`}
+      </span>
+      <span className="font-mono text-xs opacity-80">
+        Task: {taskId.substring(0, 8)}...
+      </span>
+    </div>
+  );
+}
+
+function ErrorBanner({ error }: { error: string }) {
+  return (
+    <div className="px-4 py-3 rounded-xl border border-red-500/50 bg-red-500/10 text-red-300 flex items-center gap-2">
+      <XCircle className="w-4 h-4" /> {error}
+    </div>
+  );
+}
+
+function LiveSteps({ steps }: { steps: StepEvent[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-white/10 bg-black overflow-hidden">
+      <div className="h-12 border-b border-white/10 bg-white/5 flex items-center px-4 font-mono text-sm text-gray-400">
+        <FlaskConical className="w-4 h-4 mr-2" />
+        Live Agent Steps
+      </div>
+      <div className="p-4 space-y-2 font-mono text-sm max-h-80 overflow-y-auto">
+        {steps.map((s, idx) => (
+          <div
+            key={`${s.timestamp}-${idx}`}
+            className="flex gap-3 p-2 rounded hover:bg-white/5 transition-colors"
+          >
+            <span className="text-gray-500 shrink-0 w-16">
+              {s.timestamp ? new Date(s.timestamp).toLocaleTimeString() : ""}
+            </span>
+            <span
+              className={`shrink-0 font-bold uppercase ${
+                s.type === "phase_start"
+                  ? "text-purple-400"
+                  : s.type === "phase_complete"
+                    ? "text-green-400"
+                    : s.actionType === "error"
+                      ? "text-red-400"
+                      : "text-blue-400"
+              }`}
+            >
+              {s.type === "phase_start"
+                ? `Phase ${s.environment}`
+                : s.type === "phase_complete"
+                  ? "Complete"
+                  : s.actionType}
+            </span>
+            <span className="text-gray-300 flex-1">
+              {s.objective || s.target || s.reasoning || s.value || ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Table Helpers ────────────────────────────────────────────────────
 
 function extractTable(rawValue: string): React.ReactNode {
   const markdownTable = findMarkdownTable(rawValue);

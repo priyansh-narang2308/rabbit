@@ -66,3 +66,30 @@ export async function launchPricingResearchDemo(payload: {
   }
   return res.json();
 }
+
+export async function launchFormAutofillDemo(payload: {
+  formName: string;
+  startUrl: string;
+  steps: Array<{
+    name: string;
+    url?: string;
+    fields: Array<{ selector: string; label: string; value: string }>;
+    submitSelector?: string;
+  }>;
+  proxyCountry?: string;
+  stealthEnabled?: boolean;
+  captchaEnabled?: boolean;
+  recordingEnabled?: boolean;
+}) {
+  const res = await fetch(`${API_BASE_URL}/demo/form-autofill`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to launch form autofill demo");
+  }
+  return res.json();
+}

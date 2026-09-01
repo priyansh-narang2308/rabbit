@@ -118,4 +118,132 @@ demoRouter.post("/pricing-research", async (c) => {
   return c.json({ ...newTask, competitors }, 201);
 });
 
-export { demoRouter, buildPricingTaskDescription };
+// ── Form Autofill Demo ───────────────────────────────────────────────
+
+const formFieldSchema = z.object({
+  selector: z.string().min(1),
+  label: z.string().min(1),
+  value: z.string(),
+});
+
+const formStepSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().optional(),
+  fields: z.array(formFieldSchema).min(1),
+  submitSelector: z.string().optional(),
+});
+
+const launchFormAutofillSchema = z.object({
+  formName: z.string().min(1),
+  startUrl: z.string().url(),
+  steps: z.array(formStepSchema).min(1).max(10),
+  proxyCountry: z.string().min(2).max(2).optional().default("us"),
+  stealthEnabled: z.boolean().optional().default(true),
+  captchaEnabled: z.boolean().optional().default(true),
+  recordingEnabled: z.boolean().optional().default(true),
+  maxSteps: z.number().int().positive().optional().default(80),
+  timeoutMs: z.number().int().positive().optional().default(600_000),
+});
+
+function buildFormAutofillTaskDescription(opts: {
+  formName: string;
+  startUrl: string;
+  steps: Array<{
+    name: string;
+    url?: string;
+    fields: Array<{ selector: string; label: string; value: string }>;
+    submitSelector?: string;
+  }>;
+}): string {
+  const stepDescriptions = opts.steps
+    .map((step, i) => {
+      const fieldList = step.fields
+        .map((f) => `  - "${f.label}" → "${f.value}"`)
+        .join("\n");
+      const submitNote = step.submitSelector
+        ? `After filling all fields, click the submit/next button ("${step.submitSelector}").`
+        : `After filling all fields, click the submit or next button.`;
+      return [
+        `Step ${i + 1}: ${step.name}`,
+        step.url ? `Navigate to: ${step.url}` : "",
+        `Fill the following fields:`,
+        fieldList,
+        submitNote,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n\n");
+
+  return [
+    `Fill and submit a web form: "${opts.formName}"`,
+    ``,
+    `Navigate to ${opts.startUrl} and complete the following multi-step form.`,
+    `Handle any captchas that appear. Record every field value in the audit trail.`,
+    ``,
+    stepDescriptions,
+    ``,
+    `After the final submission, verify that the form was submitted successfully by looking for a confirmation message or page. Report the confirmation text as the final result.`,
+  ].join("\n");
+}
+
+demoRouter.post("/form-autofill", async (c) => {
+  const body = await c.req.json();
+  const parsed = launchFormAutofillSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      { error: "Invalid request payload", details: parsed.error },
+      400,
+    );
+  }
+
+  const { formName, startUrl, steps, proxyCountry, ...agent } = parsed.data;
+
+  const description = buildFormAutofillTaskDescription({
+    formName,
+    startUrl,
+    steps,
+  });
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  const [newTask] = await db
+    .insert(tasks)
+    .values({
+      id,
+      description,
+      status: "queued",
+      proxyCountry,
+      stealthEnabled: agent.stealthEnabled,
+      captchaEnabled: agent.captchaEnabled,
+      recordingEnabled: agent.recordingEnabled,
+      maxSteps: agent.maxSteps,
+      timeoutMs: agent.timeoutMs,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  try {
+    await taskQueue.add("agent-tasks", { taskId: id });
+  } catch (err: any) {
+    await db
+      .update(tasks)
+      .set({
+        status: "failed",
+        errorMessage: err.message,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(tasks.id, id));
+    return c.json(
+      { error: "Demo task could not be enqueued", details: err.message },
+      500,
+    );
+  }
+
+  return c.json({ ...newTask, formName, steps }, 201);
+});
+
+export { demoRouter, buildPricingTaskDescription, buildFormAutofillTaskDescription };
