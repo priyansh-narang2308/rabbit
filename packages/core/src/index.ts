@@ -20,5 +20,6 @@ export * from "./audit/replay-parser";
 export * from "./audit/evidence";
 export * from "./demo/pricing-research";
 export * from "./demo/form-autofill";
+export * from "./demo/persistent-identity";
 export * from "./types";
 export * from "./config";

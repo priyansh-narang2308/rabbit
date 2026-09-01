@@ -18,6 +18,7 @@ import {
   API_BASE_URL,
   launchPricingResearchDemo,
   launchFormAutofillDemo,
+  launchPersistentIdentityDemo,
 } from "@/lib/api";
 
 // ── Scenario Configs ─────────────────────────────────────────────────
@@ -95,6 +96,12 @@ const FORM_SCENARIO = {
   ],
 };
 
+const IDENTITY_SCENARIO = {
+  url: "https://practicetestautomation.com/practice-test-login/",
+  username: "student",
+  password: "Password123",
+};
+
 // ── Types ────────────────────────────────────────────────────────────
 
 type StepEvent = {
@@ -113,7 +120,7 @@ type StepEvent = {
   timestamp?: string;
 };
 
-type DemoTab = "pricing" | "form-autofill";
+type DemoTab = "pricing" | "form-autofill" | "persistent-identity";
 
 export default function DemoPage() {
   const [tab, setTab] = useState<DemoTab>("pricing");
@@ -153,10 +160,22 @@ export default function DemoPage() {
           <FormInput className="w-4 h-4" />
           Form Autofill
         </button>
+        <button
+          onClick={() => setTab("persistent-identity")}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer flex items-center gap-2 ${
+            tab === "persistent-identity"
+              ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+              : "bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Persistent Identity
+        </button>
       </div>
 
       {tab === "pricing" && <PricingResearchTab />}
       {tab === "form-autofill" && <FormAutofillTab />}
+      {tab === "persistent-identity" && <PersistentIdentityTab />}
     </div>
   );
 }
@@ -499,6 +518,162 @@ function FormAutofillTab() {
             <CheckCircle2 className="w-5 h-5 text-green-400" />
             <h2 className="text-xl font-bold text-white">
               Form Submitted Successfully
+            </h2>
+          </div>
+          <pre className="whitespace-pre-wrap font-mono text-sm text-gray-300 bg-black/40 rounded-lg p-4 max-h-60 overflow-y-auto">
+            {result}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Persistent Identity Tab ────────────────────────────────────────────
+
+function PersistentIdentityTab() {
+  const [launching, setLaunching] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("idle");
+  const [steps, setSteps] = useState<StepEvent[]>([]);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+
+  const handleLaunch = async () => {
+    setLaunching(true);
+    setError(null);
+    setSteps([]);
+    setResult(null);
+    setProfileId(null);
+    setStatus("idle");
+    try {
+      const res = await launchPersistentIdentityDemo({
+        url: IDENTITY_SCENARIO.url,
+        username: IDENTITY_SCENARIO.username,
+        password: IDENTITY_SCENARIO.password,
+        stealthEnabled: true,
+        captchaEnabled: true,
+        recordingEnabled: true,
+      });
+      setTaskId(res.id);
+      setProfileId(res.profileId);
+      setStatus("queued");
+    } catch (e: any) {
+      setError(e.message || "Failed to launch demo");
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!taskId) return;
+    const evtSource = new EventSource(`${API_BASE_URL}/events/${taskId}`);
+    evtSource.addEventListener("step", (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        setSteps((prev) => [data, ...prev.slice(0, 49)]);
+      } catch {}
+    });
+    const poll = setInterval(async () => {
+      try {
+        const t = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+          cache: "no-store",
+        }).then((r) => r.json());
+        setStatus(t.status);
+        if (t.status === "completed") {
+          setResult(t.result || "Task completed successfully.");
+          clearInterval(poll);
+          evtSource.close();
+        } else if (t.status === "failed") {
+          setError(t.errorMessage || "Demo failed");
+          clearInterval(poll);
+          evtSource.close();
+        }
+      } catch {}
+    }, 2500);
+    return () => {
+      clearInterval(poll);
+      evtSource.close();
+    };
+  }, [taskId]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-end">
+        <p className="text-gray-400 max-w-xl">
+          Demonstrates persistent sessions by launching two separate browser instances. 
+          Phase 1 logs in and saves cookies/state to a profile. Phase 2 re-uses the 
+          same profile to perform an action while already authenticated.
+        </p>
+        <button
+          onClick={handleLaunch}
+          disabled={launching || status === "running" || status === "queued"}
+          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-[0_0_15px_rgba(147,51,234,0.3)]"
+        >
+          {launching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Launching...
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4" /> Launch Demo
+            </>
+          )}
+        </button>
+      </div>
+
+      <StatusBanner taskId={taskId} status={status} steps={steps} />
+      {error && <ErrorBanner error={error} />}
+
+      {/* Scenario Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-6 rounded-xl border border-white/10 bg-white/5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+              <span className="text-blue-400 font-bold">1</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-white">Initial Session</h3>
+              <p className="text-xs text-gray-500">Agent navigates to {IDENTITY_SCENARIO.url}</p>
+            </div>
+          </div>
+          <div className="bg-black/30 p-3 rounded font-mono text-sm text-gray-400">
+            <div>Username: {IDENTITY_SCENARIO.username}</div>
+            <div>Password: {IDENTITY_SCENARIO.password}</div>
+          </div>
+          <p className="text-sm text-gray-400">
+            Agent enters credentials, verifies login, and closes the browser. The session state is saved to the newly created Solari profile.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-xl border border-white/10 bg-white/5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span className="text-green-400 font-bold">2</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-white">Follow-up Session</h3>
+              <p className="text-xs text-gray-500">
+                {profileId ? `Using Profile: ${profileId.substring(0,8)}...` : "Reusing saved profile"}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-400">
+            A brand new browser instance is launched. The agent visits the site and is automatically logged in. It verifies the authenticated state without entering credentials again.
+          </p>
+        </div>
+      </div>
+
+      <LiveSteps steps={steps} />
+
+      {/* Result */}
+      {result && (
+        <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-6 space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <h2 className="text-xl font-bold text-white">
+              Identity Persisted Successfully
             </h2>
           </div>
           <pre className="whitespace-pre-wrap font-mono text-sm text-gray-300 bg-black/40 rounded-lg p-4 max-h-60 overflow-y-auto">

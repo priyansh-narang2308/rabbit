@@ -93,3 +93,24 @@ export async function launchFormAutofillDemo(payload: {
   }
   return res.json();
 }
+
+export async function launchPersistentIdentityDemo(payload: {
+  url: string;
+  username: string;
+  password: string;
+  stealthEnabled?: boolean;
+  captchaEnabled?: boolean;
+  recordingEnabled?: boolean;
+}) {
+  const res = await fetch(`${API_BASE_URL}/demo/persistent-identity`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to launch persistent identity demo");
+  }
+  return res.json();
+}

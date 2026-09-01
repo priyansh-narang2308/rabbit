@@ -246,4 +246,108 @@ demoRouter.post("/form-autofill", async (c) => {
   return c.json({ ...newTask, formName, steps }, 201);
 });
 
-export { demoRouter, buildPricingTaskDescription, buildFormAutofillTaskDescription };
+// ── Persistent Identity Demo ─────────────────────────────────────────
+
+import { profiles } from "../db/schema";
+
+const launchIdentitySchema = z.object({
+  url: z.string().url(),
+  username: z.string().min(1),
+  password: z.string().min(1),
+  stealthEnabled: z.boolean().optional().default(true),
+  captchaEnabled: z.boolean().optional().default(true),
+  recordingEnabled: z.boolean().optional().default(true),
+  maxSteps: z.number().int().positive().optional().default(80),
+  timeoutMs: z.number().int().positive().optional().default(600_000),
+});
+
+function buildPersistentIdentityTaskDescription(opts: {
+  url: string;
+  username: string;
+  password: string;
+  profileId: string;
+}): string {
+  return [
+    `Demonstrate multi-session persistent identity using profile: ${opts.profileId}`,
+    ``,
+    `Phase 1 (Initial Login Session):`,
+    `Navigate to ${opts.url}. Find the login form and authenticate using username: "${opts.username}" and password: "${opts.password}". Wait for the login to succeed and verify you are on the authenticated dashboard or logged-in state. Report success.`,
+    ``,
+    `Phase 2 (Follow-up Session):`,
+    `Navigate to ${opts.url} again. Verify that you are ALREADY logged in (do not enter credentials again). Perform a simple authenticated action (like viewing profile details or adding an item to a cart) to prove the session persisted. Report the final success state.`,
+  ].join("\n");
+}
+
+demoRouter.post("/persistent-identity", async (c) => {
+  const body = await c.req.json();
+  const parsed = launchIdentitySchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      { error: "Invalid request payload", details: parsed.error },
+      400,
+    );
+  }
+
+  const { url, username, password, ...agent } = parsed.data;
+
+  // Generate a dedicated profile just for this demo run
+  const profileId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await db.insert(profiles).values({
+    id: profileId,
+    name: `Demo Profile - ${username}`,
+    description: "Temporary profile created for the persistent identity demo",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const description = buildPersistentIdentityTaskDescription({
+    url,
+    username,
+    password,
+    profileId,
+  });
+
+  const taskId = crypto.randomUUID();
+
+  const [newTask] = await db
+    .insert(tasks)
+    .values({
+      id: taskId,
+      description,
+      status: "queued",
+      profileId,
+      proxyCountry: "us",
+      stealthEnabled: agent.stealthEnabled,
+      captchaEnabled: agent.captchaEnabled,
+      recordingEnabled: agent.recordingEnabled,
+      maxSteps: agent.maxSteps,
+      timeoutMs: agent.timeoutMs,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  try {
+    await taskQueue.add("agent-tasks", { taskId });
+  } catch (err: any) {
+    await db
+      .update(tasks)
+      .set({
+        status: "failed",
+        errorMessage: err.message,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(tasks.id, taskId));
+    return c.json(
+      { error: "Demo task could not be enqueued", details: err.message },
+      500,
+    );
+  }
+
+  return c.json({ ...newTask, profileId }, 201);
+});
+
+export { demoRouter, buildPricingTaskDescription, buildFormAutofillTaskDescription, buildPersistentIdentityTaskDescription };
