@@ -1,12 +1,3 @@
-/**
- * Rabbit — Solari Sandbox Manager
- *
- * Manages the lifecycle of Solari headless Linux microVMs (Sandboxes).
- * Agents use sandboxes to execute code (e.g., Python scripts for data processing)
- * safely isolated from our infrastructure, or to host temporary web servers
- * that can be exposed via port previews.
- */
-
 import { SolariClient, Sandbox } from "@solarisdk/sdk";
 
 export interface SandboxLaunchOptions {
@@ -26,13 +17,9 @@ export class SandboxManager {
       );
     }
 
-    // SolariClient manages sandboxes, desktops, and sessions.
     this.client = new SolariClient({ apiKey: key });
   }
 
-  /**
-   * Creates and connects to a new Sandbox microVM.
-   */
   async launchSession(
     options: SandboxLaunchOptions = {},
   ): Promise<{ sandbox: Sandbox; sandboxId: string }> {
@@ -43,7 +30,6 @@ export class SandboxManager {
     }
 
     const template = options.template || "base";
-    // 5 minute default rolling window
     const timeoutMs = options.timeoutMs || 5 * 60_000;
 
     console.log(`🐰 Launching Solari sandbox (template: ${template})...`);
@@ -65,9 +51,6 @@ export class SandboxManager {
     };
   }
 
-  /**
-   * Returns the currently active sandbox, or throws if none exists.
-   */
   getSandbox(): Sandbox {
     if (!this.currentSandbox) {
       throw new Error("No active sandbox session.");
@@ -75,11 +58,6 @@ export class SandboxManager {
     return this.currentSandbox;
   }
 
-  /**
-   * Run a command inside the sandbox.
-   * Note: commands are NOT shell-interpreted by default. To use pipes or
-   * redirection, run `sh` with `-c`.
-   */
   async runCommand(
     command: string,
     args: string[] = [],
@@ -88,19 +66,12 @@ export class SandboxManager {
     return await sandbox.commands.run(command, { args });
   }
 
-  /**
-   * Expose a port running inside the sandbox to the public internet.
-   */
   async getPreviewUrl(port: number): Promise<string> {
     const sandbox = this.getSandbox();
     const result = await sandbox.previewUrl(port);
     return result.url;
   }
 
-  /**
-   * Destroys the current sandbox VM.
-   * `kill()` completely ends the VM (unlike `close()` which only drops the local channel).
-   */
   async killSession(): Promise<void> {
     if (this.currentSandbox) {
       const sandboxId = this.currentSandbox.id;
@@ -110,9 +81,6 @@ export class SandboxManager {
     }
   }
 
-  /**
-   * Full cleanup before process exit.
-   */
   async cleanup(): Promise<void> {
     await this.killSession();
     console.log("Solari sandbox connections closed.");
