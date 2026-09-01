@@ -46,102 +46,195 @@ export const taskWorker = new Worker(
       .set({ status: "running", startedAt: now })
       .where(eq(tasks.id, taskId));
 
-    const browserManager = new BrowserManager();
-    let solariSessionId: string | undefined;
+    // Determine environment based on keywords
+    const isDesktopTask = /desktop|pdf|spreadsheet|excel|app\b/i.test(taskRecord.description);
+    const environment = isDesktopTask ? "desktop" : "browser";
 
-    try {
-      const { browser, sessionId } = await browserManager.launchSession({
-        profileId: taskRecord.profileId || undefined,
-        proxyCountry: taskRecord.proxyCountry || undefined,
-        stealth: taskRecord.stealthEnabled ?? true,
-        captcha: taskRecord.captchaEnabled ?? true,
-        recording: taskRecord.recordingEnabled ?? true,
-      });
-      solariSessionId = sessionId;
+    // Set the environment explicitly on the run right away
+    await db.update(runs).set({ solariEnvironment: environment }).where(eq(runs.id, runId));
 
-      await db.update(runs).set({ solariSessionId }).where(eq(runs.id, runId));
+    if (environment === "desktop") {
+      // DESKTOP WORKFLOW
+      const { DesktopManager, DesktopOrchestrator } = await import("@rabbit/core");
+      const desktopManager = new DesktopManager();
+      let desktopId: string | undefined;
 
-      const page = await browser.newPage();
+      try {
+        const { desktop, desktopId: sId } = await desktopManager.launchSession({
+          timeoutMs: taskRecord.timeoutMs || 300000
+        });
+        desktopId = sId;
 
-      const orchestrator = new AgentOrchestrator(page as any, {
-        task: taskRecord.description,
-        runId,
-        maxSteps: taskRecord.maxSteps || defaultConfig.agent.maxSteps,
-        onLog: async (entry: any) => {
-          let screenshotPath;
-          if (entry.screenshotBase64) {
-            screenshotPath = await StorageManager.saveScreenshot(
+        await db.update(runs).set({ solariSessionId: desktopId }).where(eq(runs.id, runId));
+
+        const orchestrator = new DesktopOrchestrator(desktopManager, {
+          task: taskRecord.description,
+          runId,
+          maxSteps: taskRecord.maxSteps || defaultConfig.agent.maxSteps,
+          onLog: async (entry: any) => {
+            let screenshotPath;
+            if (entry.screenshotBase64) {
+              screenshotPath = await StorageManager.saveScreenshot(
+                runId,
+                entry.stepIndex,
+                entry.screenshotBase64,
+              );
+            }
+
+            await db.insert(auditEntries).values({
+              id: entry.id,
               runId,
-              entry.stepIndex,
-              entry.screenshotBase64,
+              stepIndex: entry.stepIndex,
+              actionType: entry.actionType,
+              target: entry.target,
+              value: entry.value,
+              reasoning: entry.reasoning,
+              screenshotPath,
+              url: entry.url,
+              success: entry.success,
+              errorMessage: entry.errorMessage,
+              durationMs: entry.durationMs,
+              timestamp: entry.timestamp,
+            });
+
+            await pub.publish(
+              `task-events:${taskId}`,
+              JSON.stringify({ ...entry, screenshotPath }),
             );
+          },
+        });
+
+        const result = await orchestrator.run();
+
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(tasks.id, taskId));
+      } catch (err: any) {
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(tasks.id, taskId));
+      } finally {
+        await desktopManager.cleanup();
+      }
+    } else {
+      // BROWSER WORKFLOW
+      const browserManager = new BrowserManager();
+      let solariSessionId: string | undefined;
+
+      try {
+        const { browser, sessionId } = await browserManager.launchSession({
+          profileId: taskRecord.profileId || undefined,
+          proxyCountry: taskRecord.proxyCountry || undefined,
+          stealth: taskRecord.stealthEnabled ?? true,
+          captcha: taskRecord.captchaEnabled ?? true,
+          recording: taskRecord.recordingEnabled ?? true,
+        });
+        solariSessionId = sessionId;
+
+        await db.update(runs).set({ solariSessionId }).where(eq(runs.id, runId));
+
+        const page = await browser.newPage();
+
+        const orchestrator = new AgentOrchestrator(page as any, {
+          task: taskRecord.description,
+          runId,
+          maxSteps: taskRecord.maxSteps || defaultConfig.agent.maxSteps,
+          onLog: async (entry: any) => {
+            let screenshotPath;
+            if (entry.screenshotBase64) {
+              screenshotPath = await StorageManager.saveScreenshot(
+                runId,
+                entry.stepIndex,
+                entry.screenshotBase64,
+              );
+            }
+
+            await db.insert(auditEntries).values({
+              id: entry.id,
+              runId,
+              stepIndex: entry.stepIndex,
+              actionType: entry.actionType,
+              target: entry.target,
+              value: entry.value,
+              reasoning: entry.reasoning,
+              screenshotPath,
+              url: entry.url,
+              success: entry.success,
+              errorMessage: entry.errorMessage,
+              durationMs: entry.durationMs,
+              timestamp: entry.timestamp,
+            });
+
+            await pub.publish(
+              `task-events:${taskId}`,
+              JSON.stringify({ ...entry, screenshotPath }),
+            );
+          },
+        });
+
+        const result = await orchestrator.run();
+
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(tasks.id, taskId));
+      } catch (err: any) {
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(tasks.id, taskId));
+      } finally {
+        await browserManager.cleanup();
+
+        if (solariSessionId && taskRecord.recordingEnabled) {
+          try {
+            const downloader = new RecordingDownloader();
+            // Type cast to any since we just need the ID to satisfy our downloader logic
+            const { data } = await downloader.download({
+              id: solariSessionId,
+            } as any);
+            await StorageManager.saveRecording(runId, solariSessionId, data);
+          } catch (downloadErr) {
+            console.error("Failed to download recording:", downloadErr);
           }
-
-          await db.insert(auditEntries).values({
-            id: entry.id,
-            runId,
-            stepIndex: entry.stepIndex,
-            actionType: entry.actionType,
-            target: entry.target,
-            value: entry.value,
-            reasoning: entry.reasoning,
-            screenshotPath,
-            url: entry.url,
-            success: entry.success,
-            errorMessage: entry.errorMessage,
-            durationMs: entry.durationMs,
-            timestamp: entry.timestamp,
-          });
-
-          await pub.publish(
-            `task-events:${taskId}`,
-            JSON.stringify({ ...entry, screenshotPath }),
-          );
-        },
-      });
-
-      const result = await orchestrator.run();
-
-      const endNow = new Date().toISOString();
-      await db
-        .update(runs)
-        .set({ status: "completed", result, completedAt: endNow })
-        .where(eq(runs.id, runId));
-      await db
-        .update(tasks)
-        .set({ status: "completed", result, completedAt: endNow })
-        .where(eq(tasks.id, taskId));
-    } catch (err: any) {
-      const endNow = new Date().toISOString();
-      await db
-        .update(runs)
-        .set({
-          status: "failed",
-          errorMessage: err.message,
-          completedAt: endNow,
-        })
-        .where(eq(runs.id, runId));
-      await db
-        .update(tasks)
-        .set({
-          status: "failed",
-          errorMessage: err.message,
-          completedAt: endNow,
-        })
-        .where(eq(tasks.id, taskId));
-    } finally {
-      await browserManager.cleanup();
-
-      if (solariSessionId && taskRecord.recordingEnabled) {
-        try {
-          const downloader = new RecordingDownloader();
-          // Type cast to any since we just need the ID to satisfy our downloader logic
-          const { data } = await downloader.download({
-            id: solariSessionId,
-          } as any);
-          await StorageManager.saveRecording(runId, solariSessionId, data);
-        } catch (downloadErr) {
-          console.error("Failed to download recording:", downloadErr);
         }
       }
     }

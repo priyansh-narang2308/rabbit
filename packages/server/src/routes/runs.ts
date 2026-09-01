@@ -49,4 +49,34 @@ runsRouter.get("/:id/replay", async (c) => {
   }
 });
 
+runsRouter.get("/:id/stream", async (c) => {
+  const { id } = c.req.param();
+  const run = await db.query.runs.findFirst({
+    where: eq(runs.id, id),
+  });
+
+  if (!run) {
+    return c.json({ error: "Run not found" }, 404);
+  }
+
+  if (run.solariEnvironment !== "desktop") {
+    return c.json({ error: "Run is not a desktop session" }, 400);
+  }
+
+  if (!run.solariSessionId) {
+    return c.json({ error: "No Solari session attached to this run" }, 404);
+  }
+
+  try {
+    // Assuming DesktopManager can connect to an existing session by ID or we just return a mock VNC url for the demo
+    const streamUrl = `https://vnc.solari.com/connect/${run.solariSessionId}`;
+    return c.json({ streamUrl });
+  } catch (error: any) {
+    return c.json(
+      { error: "Failed to retrieve stream URL", details: error.message },
+      500,
+    );
+  }
+});
+
 export { runsRouter };

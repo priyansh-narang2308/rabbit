@@ -35,9 +35,9 @@ export class AuditLogger {
 
   async logStep(
     stepIndex: number,
-    action: Action,
-    result: ExecutorResult,
-    evaluation: Evaluation,
+    action: any,
+    result: any,
+    evaluation: any,
   ): Promise<void> {
     const entry: AuditEntry = {
       id: crypto.randomUUID(),
