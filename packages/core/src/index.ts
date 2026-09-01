@@ -7,5 +7,6 @@ export * from "./agent/executor";
 export * from "./agent/evaluator";
 export * from "./agent/orchestrator";
 export * from "./audit/trail";
+export * from "./audit/replay-parser";
 export * from "./types";
 export * from "./config";
