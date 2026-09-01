@@ -1,14 +1,26 @@
-export const OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1";
+/**
+ * Shared OpenRouter API helper for Rabbit agent models.
+ */
 
-const VISION_MODEL = "llava";
-const TEXT_MODEL = "llava";
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
-export interface OllamaRequest {
+// Vision-capable model (browser screenshot + DOM)
+const VISION_MODEL = "openai/gpt-4o-mini";
+// Text-only model for the sandbox / multi-env planners
+const TEXT_MODEL = "openai/gpt-4o-mini";
+
+export interface OpenRouterRequest {
+  /** OpenAI-style chat messages. */
   messages: any[];
+  /** Model ID. Defaults based on whether vision is used. */
   model?: string;
+  /** API key. */
   apiKey?: string;
+  /** Maximum completion tokens. */
   maxTokens?: number;
+  /** Temperature. */
   temperature?: number;
+  /** Whether the request includes image parts (use vision model default). */
   vision?: boolean;
 }
 
@@ -17,40 +29,50 @@ function resolveModel(model: string | undefined, vision: boolean): string {
   return vision ? VISION_MODEL : TEXT_MODEL;
 }
 
-export async function ollamaChat(opts: OllamaRequest): Promise<string> {
+export async function openrouterChat(opts: OpenRouterRequest): Promise<string> {
   const model = resolveModel(opts.model, opts.vision ?? false);
+  const apiKey = opts.apiKey || process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not set in the environment.");
+  }
 
   const body: Record<string, any> = {
     model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.1,
   };
+  
   if (opts.maxTokens) body.max_tokens = opts.maxTokens;
 
+  // GPT-4o-mini on OpenRouter supports json_object perfectly
   body.response_format = { type: "json_object" };
 
-  const response = await fetch(`${OLLAMA_BASE_URL}/chat/completions`, {
+  const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
+      "X-Title": "Rabbit",
     },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Ollama API error (${response.status}): ${errorBody}`);
+    throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
   }
 
   const data = await response.json();
-  return extractOllamaContent(data);
+  return extractOpenRouterContent(data);
 }
 
-function extractOllamaContent(data: any): string {
+function extractOpenRouterContent(data: any): string {
   const message = data.choices?.[0]?.message;
   if (!message) {
     throw new Error(
-      `No message in Ollama response. Full response: ${JSON.stringify(data.choices ?? data)}`,
+      `No message in OpenRouter response. Full response: ${JSON.stringify(data.choices ?? data)}`,
     );
   }
 
@@ -72,7 +94,7 @@ function extractOllamaContent(data: any): string {
   }
 
   throw new Error(
-    `No extractable content in Ollama response. Full message: ${JSON.stringify(message)}`,
+    `No extractable content in OpenRouter response. Full message: ${JSON.stringify(message)}`,
   );
 }
 
@@ -88,10 +110,7 @@ export function extractJson(content: string, requiredKey?: string): string {
   return trimmed;
 }
 
-export function parseJsonObject<T = any>(
-  content: string,
-  requiredKey?: string,
-): T {
+export function parseJsonObject<T = any>(content: string, requiredKey?: string): T {
   const candidate = extractJson(content, requiredKey);
   return JSON.parse(candidate) as T;
 }
@@ -108,11 +127,7 @@ const KNOWN_ACTION_TYPES = [
   "error",
 ];
 
-function findActionObject(
-  value: any,
-  types: readonly string[],
-  depth = 0,
-): any {
+function findActionObject(value: any, types: readonly string[], depth = 0): any {
   if (depth > 6 || value == null) return undefined;
   if (typeof value !== "object") return undefined;
 
@@ -141,10 +156,7 @@ export function parseAction<T = any>(
   try {
     parsed = JSON.parse(extractJson(content));
   } catch {
-    return {
-      type: "error",
-      message: `Unparseable model output: ${content}`,
-    } as T;
+    return { type: "error", message: `Unparseable model output: ${content}` } as T;
   }
 
   const action = findActionObject(parsed, knownTypes);

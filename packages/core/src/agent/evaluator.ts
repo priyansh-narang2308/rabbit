@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Action } from "./planner";
 import type { ExecutorResult } from "./executor";
-import { ollamaChat, parseJsonObject } from "../llm/ollama";
+import { openrouterChat, parseJsonObject } from "../llm/openrouter";
 
 export const EvaluationSchema = z.object({
   success: z.boolean(),
@@ -68,7 +68,7 @@ Current URL: ${result.url}`;
       },
     ];
 
-    const content = await ollamaChat({
+    const content = await openrouterChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,

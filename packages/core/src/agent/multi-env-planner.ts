@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ollamaChat, parseJsonObject } from "../llm/ollama";
+import { openrouterChat, parseJsonObject } from "../llm/openrouter";
 
 export const MultiEnvStepSchema = z.object({
   environment: z.enum(["browser", "sandbox", "desktop"]),
@@ -63,7 +63,7 @@ export class MultiEnvPlanner {
       { role: "user", content: userPrompt },
     ];
 
-    const content = await ollamaChat({
+    const content = await openrouterChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,

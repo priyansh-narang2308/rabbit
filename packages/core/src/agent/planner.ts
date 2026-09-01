@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ollamaChat, parseAction } from "../llm/ollama";
+import { openrouterChat, parseAction } from "../llm/openrouter";
 
 export const ActionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -45,7 +45,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("error"),
-    message: z.string(),
+    message: z.string().default("Model output an error but provided no message"),
     reasoning: z.string().default(""),
   }),
 ]);
@@ -78,13 +78,13 @@ You receive:
 - Your action history so far
 
 You must respond with a single JSON action. Available actions:
-- navigate: Go to a URL. Use when you need to visit a new page.
-- click: Click an element by CSS selector. Use for buttons, links, inputs.
-- type: Type text into an input by CSS selector. Always click/focus first if needed.
-- scroll: Scroll the page up or down. Use when content is below the fold.
+- navigate: Go to a URL. MUST include a "url" string field. (e.g. {"type": "navigate", "url": "https://google.com"})
+- click: Click an element. MUST include "selector". (e.g. {"type": "click", "selector": "#btn"})
+- type: Type text. MUST include "selector" and "value". (e.g. {"type": "type", "selector": "#input", "value": "text"})
+- scroll: Scroll page. MUST include "direction" ("up"|"down"). (e.g. {"type": "scroll", "direction": "down"})
 - evaluate: Run arbitrary JavaScript on the page. Use sparingly, for complex extractions.
 - wait: Wait for a specified number of milliseconds. Use after actions that trigger loading.
-- extract: Extract text content from an element by CSS selector.
+- extract: Extract text. MUST include "selector". (e.g. {"type": "extract", "selector": ".price"})
 - done: The task is complete. Include the final result/answer.
 - error: Something went wrong and you cannot recover.
 
@@ -155,7 +155,7 @@ export class Planner {
       },
     ];
 
-    const content = await ollamaChat({
+    const content = await openrouterChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,

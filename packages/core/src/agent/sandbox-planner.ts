@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ollamaChat, parseAction } from "../llm/ollama";
+import { openrouterChat, parseAction } from "../llm/openrouter";
 
 export const SandboxActionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -105,7 +105,7 @@ export class SandboxPlanner {
       { role: "user", content: userPrompt },
     ];
 
-    const content = await ollamaChat({
+    const content = await openrouterChat({
       messages,
       apiKey: this.apiKey,
       model: this.model || undefined,
