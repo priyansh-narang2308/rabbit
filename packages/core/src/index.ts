@@ -13,6 +13,8 @@ export * from "./agent/desktop-orchestrator";
 export * from "./agent/sandbox-planner";
 export * from "./agent/sandbox-executor";
 export * from "./agent/sandbox-orchestrator";
+export * from "./agent/multi-env-planner";
+export * from "./agent/multi-env-orchestrator";
 export * from "./audit/trail";
 export * from "./audit/replay-parser";
 export * from "./audit/evidence";

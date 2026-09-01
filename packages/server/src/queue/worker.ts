@@ -53,18 +53,139 @@ export const taskWorker = new Worker(
     const isSandboxTask = /sandbox|script|python|calculate|report\b/i.test(
       taskRecord.description,
     );
+    const isMultiEnv =
+      (isDesktopTask && isSandboxTask) ||
+      (isDesktopTask &&
+        /scrape|browse|website|url\b/i.test(taskRecord.description)) ||
+      (isSandboxTask &&
+        /scrape|browse|website|url\b/i.test(taskRecord.description)) ||
+      /multi.?env|pipeline|chain|then\b/i.test(taskRecord.description);
 
     let environment: "browser" | "desktop" | "sandbox" = "browser";
     if (isSandboxTask) environment = "sandbox";
     if (isDesktopTask) environment = "desktop";
 
-    // Set the environment explicitly on the run right away
     await db
       .update(runs)
-      .set({ solariEnvironment: environment })
+      .set({ solariEnvironment: isMultiEnv ? "browser" : environment })
       .where(eq(runs.id, runId));
 
-    if (environment === "sandbox") {
+    if (isMultiEnv) {
+      const { MultiEnvOrchestrator } = await import("@rabbit/core");
+
+      try {
+        const orchestrator = new MultiEnvOrchestrator({
+          task: taskRecord.description,
+          runId,
+          maxStepsPerPhase: Math.floor(
+            (taskRecord.maxSteps || defaultConfig.agent.maxSteps) / 3,
+          ),
+          onLog: async (entry: any) => {
+            let screenshotPath;
+            if (entry.screenshotBase64) {
+              screenshotPath = await StorageManager.saveScreenshot(
+                runId,
+                entry.stepIndex,
+                entry.screenshotBase64,
+              );
+            }
+
+            await db.insert(auditEntries).values({
+              id: entry.id,
+              runId,
+              stepIndex: entry.stepIndex,
+              actionType: entry.actionType,
+              target: entry.target,
+              value: entry.value,
+              reasoning: entry.reasoning,
+              screenshotPath,
+              url: entry.url,
+              success: entry.success,
+              errorMessage: entry.errorMessage,
+              durationMs: entry.durationMs,
+              timestamp: entry.timestamp,
+            });
+
+            await pub.publish(
+              `task-events:${taskId}`,
+              JSON.stringify({ ...entry, screenshotPath }),
+            );
+          },
+          onPhaseStart: (phase, step) => {
+            pub.publish(
+              `task-events:${taskId}`,
+              JSON.stringify({
+                type: "phase_start",
+                phase,
+                environment: step.environment,
+                objective: step.objective,
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          },
+          onPhaseComplete: (phase, step, result) => {
+            pub.publish(
+              `task-events:${taskId}`,
+              JSON.stringify({
+                type: "phase_complete",
+                phase,
+                environment: step.environment,
+                result: result.slice(0, 500),
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          },
+          browserLaunchOptions: {
+            profileId: taskRecord.profileId || undefined,
+            proxyCountry: taskRecord.proxyCountry || undefined,
+            stealth: taskRecord.stealthEnabled ?? true,
+            captcha: taskRecord.captchaEnabled ?? true,
+            recording: taskRecord.recordingEnabled ?? true,
+          },
+        });
+
+        const multiResult = await orchestrator.run();
+        const result = JSON.stringify({
+          plan: multiResult.plan,
+          phaseResults: multiResult.phaseResults.map((p) => ({
+            phase: p.phase,
+            environment: p.environment,
+            objective: p.objective,
+            result: p.result,
+            durationMs: p.durationMs,
+          })),
+          finalResult: multiResult.finalResult,
+        });
+
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(tasks.id, taskId));
+      } catch (err: any) {
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(tasks.id, taskId));
+      }
+    } else if (environment === "sandbox") {
       const { SandboxManager, SandboxOrchestrator } =
         await import("@rabbit/core");
       const sandboxManager = new SandboxManager();
