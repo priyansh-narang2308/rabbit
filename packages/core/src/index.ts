@@ -8,5 +8,6 @@ export * from "./agent/evaluator";
 export * from "./agent/orchestrator";
 export * from "./audit/trail";
 export * from "./audit/replay-parser";
+export * from "./audit/evidence";
 export * from "./types";
 export * from "./config";
