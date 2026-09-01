@@ -1,7 +1,20 @@
 import React from "react";
 import { Terminal, Activity, Eye, Play } from "lucide-react";
+import { fetchStatus } from "@/lib/api";
 
-export default function DashboardOverview() {
+export default async function DashboardOverview() {
+  let statusData = {
+    activeSessions: 0,
+    completedRuns: 0,
+    successRate: 0,
+  };
+
+  try {
+    statusData = await fetchStatus();
+  } catch (error) {
+    console.error("Failed to load dashboard stats:", error);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -19,7 +32,7 @@ export default function DashboardOverview() {
             </span>
             <Activity className="w-4 h-4 text-green-400" />
           </div>
-          <div className="text-3xl font-bold">12</div>
+          <div className="text-3xl font-bold">{statusData.activeSessions}</div>
         </div>
         <div className="p-6 rounded-xl border border-white/10 bg-white/5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -28,7 +41,7 @@ export default function DashboardOverview() {
             </span>
             <Terminal className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-3xl font-bold">1,402</div>
+          <div className="text-3xl font-bold">{statusData.completedRuns.toLocaleString()}</div>
         </div>
         <div className="p-6 rounded-xl border border-white/10 bg-white/5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -37,7 +50,7 @@ export default function DashboardOverview() {
             </span>
             <Eye className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="text-3xl font-bold">99.4%</div>
+          <div className="text-3xl font-bold">{statusData.successRate}%</div>
         </div>
         <div className="p-6 rounded-xl border border-purple-500/30 bg-purple-500/10 flex flex-col justify-center items-center gap-2 cursor-pointer hover:bg-purple-500/20 transition-colors">
           <Play className="w-6 h-6 text-purple-400 fill-purple-400" />

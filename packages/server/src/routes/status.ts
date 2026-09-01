@@ -31,9 +31,16 @@ statusRouter.get("/status", async (c) => {
   const activeJobs = await taskQueue.getActiveCount();
   const waitingJobs = await taskQueue.getWaitingCount();
 
-  const activeRuns = await db.query.runs.findMany({
-    where: eq(runs.status, "running"),
-  });
+  const allRuns = await db.query.runs.findMany();
+  
+  const activeRuns = allRuns.filter(r => r.status === "running");
+  const completedRuns = allRuns.filter(r => r.status === "completed");
+  const failedRuns = allRuns.filter(r => r.status === "failed");
+  
+  const finishedRunsCount = completedRuns.length + failedRuns.length;
+  const successRate = finishedRunsCount > 0 
+    ? ((completedRuns.length / finishedRunsCount) * 100).toFixed(1)
+    : 0;
 
   return c.json({
     system: "ok",
@@ -43,6 +50,9 @@ statusRouter.get("/status", async (c) => {
       waiting: waitingJobs,
     },
     activeSessions: activeRuns.length,
+    completedRuns: completedRuns.length,
+    totalRuns: allRuns.length,
+    successRate: parseFloat(successRate.toString()),
     timestamp: new Date().toISOString(),
   });
 });

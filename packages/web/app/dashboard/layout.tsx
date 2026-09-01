@@ -9,11 +9,17 @@ import {
   AnimatedSidebarMenu,
   AnimatedSidebarMenuItem,
   AnimatedSidebarMenuButton,
-  AnimatedSidebarFooter,
   AnimatedSidebarInset,
   AnimatedSidebarTrigger,
 } from "@/components/motion/animated-sidebar";
-import { LayoutDashboard, Activity, Settings, PanelLeft } from "lucide-react";
+import {
+  LayoutDashboard,
+  Activity,
+  Settings,
+  User,
+  PanelLeft,
+  Terminal,
+} from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -43,6 +49,22 @@ export default function DashboardLayout({
                     icon={<LayoutDashboard className="w-4 h-4" />}
                   >
                     Overview
+                  </AnimatedSidebarMenuButton>
+                </AnimatedSidebarMenuItem>
+                <AnimatedSidebarMenuItem>
+                  <AnimatedSidebarMenuButton
+                    href="/dashboard/tasks"
+                    icon={<Terminal className="w-4 h-4" />}
+                  >
+                    Tasks
+                  </AnimatedSidebarMenuButton>
+                </AnimatedSidebarMenuItem>
+                <AnimatedSidebarMenuItem>
+                  <AnimatedSidebarMenuButton
+                    href="/dashboard/identities"
+                    icon={<User className="w-4 h-4" />}
+                  >
+                    Identities
                   </AnimatedSidebarMenuButton>
                 </AnimatedSidebarMenuItem>
                 <AnimatedSidebarMenuItem>
