@@ -2,8 +2,6 @@
 
 Rabbit is an open-source, multi-environment agent orchestration platform built on the Solari SDK. Designed for production workloads, Rabbit provides a scalable, compliant, and deeply integrated architecture for managing autonomous AI agents across web browsers, secure sandboxes, and desktop environments.
 
-![Rabbit Dashboard Demo](.github/demo-preview.png)
-
 ---
 
 ## Core Capabilities
@@ -32,15 +30,15 @@ Rabbit is organized as a strict monorepo containing three core internal packages
 
 ```mermaid
 graph TD
-    Client([Client Application]) --> API[Rabbit Control Plane (Hono API)]
-    WebDashboard[Rabbit Web UI (Next.js)] --> API
-    API --> DB[(SQLite Database)]
-    API --> Redis[(Redis Message Broker)]
-    Redis --> Worker[Rabbit Worker Daemon]
-    Worker --> Core[@rabbit/core Execution Engine]
-    Core --> Browser[Solari Browser Fleet]
-    Core --> Sandbox[Solari Sandbox Fleet]
-    Core --> Desktop[Solari Desktop Fleet]
+    Client(["Client Application"]) --> API["Rabbit Control Plane (Hono API)"]
+    WebDashboard["Rabbit Web UI (Next.js)"] --> API
+    API --> DB[("SQLite Database")]
+    API --> Redis[("Redis Message Broker")]
+    Redis --> Worker["Rabbit Worker Daemon"]
+    Worker --> Core["@rabbit/core Execution Engine"]
+    Core --> Browser["Solari Browser Fleet"]
+    Core --> Sandbox["Solari Sandbox Fleet"]
+    Core --> Desktop["Solari Desktop Fleet"]
 ```
 
 ---
