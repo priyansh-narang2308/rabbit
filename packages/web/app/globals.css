@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Audiowide&family=DM+Mono:wght@400;500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Hedvig+Letters+Serif:opsz@12..24&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Lato:wght@400;700&family=Manrope:wght@400;500;600;700&family=Monda:wght@400;500;600;700&family=Outfit:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&family=Red+Hat+Display:wght@400;500;600;700&family=Rethink+Sans:wght@400;500;600;700&family=Tillana:wght@400;500;600;700&family=Urbanist:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -128,3 +129,14 @@
     @apply font-sans;
   }
 }
+
+/* Parallax GSAP Styles */
+.parallax { position: relative; width: 100%; overflow: hidden; background: #000; color: #fff; }
+.parallax__header { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.parallax__visuals { position: absolute; inset: 0; width: 100%; height: 100%; }
+.parallax__layers { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.parallax__layer-img { position: absolute; width: 100%; height: 110%; object-fit: cover; }
+.parallax__layer-title { position: absolute; z-index: 10; text-align: center; }
+.parallax__title { font-size: 15vw; font-weight: 800; text-transform: uppercase; letter-spacing: -0.05em; line-height: 1; }
+.parallax__fade { position: absolute; bottom: 0; width: 100%; height: 30vh; background: linear-gradient(to top, #000, transparent); z-index: 20; }
+.parallax__content { position: relative; background: #000; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; z-index: 30; }

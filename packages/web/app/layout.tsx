@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -8,9 +8,9 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const outfit = Outfit({
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+const caveat = Caveat({
   subsets: ["latin"],
+  variable: "--font-caveat",
 });
 
 export const metadata: Metadata = {
@@ -26,10 +26,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.className} ${outfit.className} h-full antialiased`}
+      className={`${inter.className} ${caveat.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
+      <body className="min-h-screen flex flex-col font-sans bg-background text-foreground">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
