@@ -79,4 +79,42 @@ runsRouter.get("/:id/stream", async (c) => {
   }
 });
 
+runsRouter.get("/:id/preview", async (c) => {
+  const { id } = c.req.param();
+  const portStr = c.req.query("port");
+  
+  if (!portStr || isNaN(parseInt(portStr))) {
+    return c.json({ error: "Valid port query parameter is required (e.g. ?port=8080)" }, 400);
+  }
+
+  const port = parseInt(portStr);
+
+  const run = await db.query.runs.findFirst({
+    where: eq(runs.id, id),
+  });
+
+  if (!run) {
+    return c.json({ error: "Run not found" }, 404);
+  }
+
+  if (run.solariEnvironment !== "sandbox") {
+    return c.json({ error: "Run is not a sandbox session" }, 400);
+  }
+
+  if (!run.solariSessionId) {
+    return c.json({ error: "No Solari session attached to this run" }, 404);
+  }
+
+  try {
+    // Assuming SandboxManager can connect to an existing session by ID or we just return a mock preview url for the demo
+    const previewUrl = `https://port-${port}-${run.solariSessionId}.preview.solari.com`;
+    return c.json({ previewUrl });
+  } catch (error: any) {
+    return c.json(
+      { error: "Failed to retrieve preview URL", details: error.message },
+      500,
+    );
+  }
+});
+
 export { runsRouter };

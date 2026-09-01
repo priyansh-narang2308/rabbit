@@ -47,25 +47,115 @@ export const taskWorker = new Worker(
       .where(eq(tasks.id, taskId));
 
     // Determine environment based on keywords
-    const isDesktopTask = /desktop|pdf|spreadsheet|excel|app\b/i.test(taskRecord.description);
-    const environment = isDesktopTask ? "desktop" : "browser";
+    const isDesktopTask = /desktop|pdf|spreadsheet|excel|app\b/i.test(
+      taskRecord.description,
+    );
+    const isSandboxTask = /sandbox|script|python|calculate|report\b/i.test(
+      taskRecord.description,
+    );
+
+    let environment: "browser" | "desktop" | "sandbox" = "browser";
+    if (isSandboxTask) environment = "sandbox";
+    if (isDesktopTask) environment = "desktop";
 
     // Set the environment explicitly on the run right away
-    await db.update(runs).set({ solariEnvironment: environment }).where(eq(runs.id, runId));
+    await db
+      .update(runs)
+      .set({ solariEnvironment: environment })
+      .where(eq(runs.id, runId));
 
-    if (environment === "desktop") {
+    if (environment === "sandbox") {
+      const { SandboxManager, SandboxOrchestrator } =
+        await import("@rabbit/core");
+      const sandboxManager = new SandboxManager();
+      let sandboxId: string | undefined;
+
+      try {
+        const { sandbox, sandboxId: sId } = await sandboxManager.launchSession({
+          timeoutMs: taskRecord.timeoutMs || 300000,
+        });
+        sandboxId = sId;
+
+        // Save session ID
+        await db
+          .update(runs)
+          .set({ solariSessionId: sandboxId })
+          .where(eq(runs.id, runId));
+
+        const orchestrator = new SandboxOrchestrator(sandboxManager, {
+          task: taskRecord.description,
+          runId,
+          maxSteps: taskRecord.maxSteps || defaultConfig.agent.maxSteps,
+          onLog: async (entry: any) => {
+            await db.insert(auditEntries).values({
+              id: entry.id,
+              runId,
+              stepIndex: entry.stepIndex,
+              actionType: entry.actionType,
+              target: entry.target,
+              value: entry.value,
+              reasoning: entry.reasoning,
+              url: entry.url,
+              success: entry.success,
+              errorMessage: entry.errorMessage,
+              durationMs: entry.durationMs,
+              timestamp: entry.timestamp,
+            });
+
+            await pub.publish(`task-events:${taskId}`, JSON.stringify(entry));
+          },
+        });
+
+        const result = await orchestrator.run();
+
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({ status: "completed", result, completedAt: endNow })
+          .where(eq(tasks.id, taskId));
+      } catch (err: any) {
+        const endNow = new Date().toISOString();
+        await db
+          .update(runs)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(runs.id, runId));
+        await db
+          .update(tasks)
+          .set({
+            status: "failed",
+            errorMessage: err.message,
+            completedAt: endNow,
+          })
+          .where(eq(tasks.id, taskId));
+      } finally {
+        await sandboxManager.cleanup();
+      }
+    } else if (environment === "desktop") {
       // DESKTOP WORKFLOW
-      const { DesktopManager, DesktopOrchestrator } = await import("@rabbit/core");
+      const { DesktopManager, DesktopOrchestrator } =
+        await import("@rabbit/core");
       const desktopManager = new DesktopManager();
       let desktopId: string | undefined;
 
       try {
         const { desktop, desktopId: sId } = await desktopManager.launchSession({
-          timeoutMs: taskRecord.timeoutMs || 300000
+          timeoutMs: taskRecord.timeoutMs || 300000,
         });
         desktopId = sId;
 
-        await db.update(runs).set({ solariSessionId: desktopId }).where(eq(runs.id, runId));
+        // Save session ID and optionally stream URL if we had a dedicated column for it
+        await db
+          .update(runs)
+          .set({ solariSessionId: desktopId })
+          .where(eq(runs.id, runId));
 
         const orchestrator = new DesktopOrchestrator(desktopManager, {
           task: taskRecord.description,
@@ -151,7 +241,10 @@ export const taskWorker = new Worker(
         });
         solariSessionId = sessionId;
 
-        await db.update(runs).set({ solariSessionId }).where(eq(runs.id, runId));
+        await db
+          .update(runs)
+          .set({ solariSessionId })
+          .where(eq(runs.id, runId));
 
         const page = await browser.newPage();
 
