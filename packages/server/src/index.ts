@@ -6,6 +6,8 @@ import { cors } from "hono/cors";
 import { db } from "./db";
 import { tasks } from "./db/schema";
 import { tasksRouter } from "./routes/tasks";
+import { runsRouter } from "./routes/runs";
+import { profilesRouter } from "./routes/profiles";
 
 const app = new Hono();
 
@@ -18,6 +20,8 @@ app.onError((err, c) => {
 });
 
 app.route("/api/tasks", tasksRouter);
+app.route("/api/runs", runsRouter);
+app.route("/api/profiles", profilesRouter);
 
 app.get("/health", async (c) => {
   db.select().from(tasks).limit(1).all();
