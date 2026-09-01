@@ -165,6 +165,14 @@ export class Planner {
     });
 
     const parsed = parseAction<Partial<Action>>(content);
-    return ActionSchema.parse(parsed);
+    try {
+      return ActionSchema.parse(parsed);
+    } catch (e: any) {
+      return {
+        type: "error",
+        message: `Schema validation failed: ${e.message}. Raw output: ${JSON.stringify(parsed)}`,
+        reasoning: "The model returned an invalid action structure.",
+      };
+    }
   }
 }

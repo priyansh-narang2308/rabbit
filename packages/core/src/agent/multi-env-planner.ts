@@ -72,6 +72,13 @@ export class MultiEnvPlanner {
     });
 
     const parsed = parseJsonObject<MultiEnvPlan>(content);
-    return MultiEnvPlanSchema.parse(parsed);
+    try {
+      return MultiEnvPlanSchema.parse(parsed);
+    } catch (e: any) {
+      // For multi-env, we return a fallback plan that just throws an error
+      return {
+        steps: [{ environment: "sandbox", objective: "error", reasoning: `Schema validation failed: ${e.message}` }]
+      };
+    }
   }
 }

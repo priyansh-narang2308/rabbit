@@ -77,7 +77,14 @@ Current URL: ${result.url}`;
       vision: true,
     });
 
-    const parsed = parseJsonObject<Evaluation>(content);
-    return EvaluationSchema.parse(parsed);
+    const parsed = parseJsonObject<Partial<Evaluation>>(content);
+    try {
+      return EvaluationSchema.parse(parsed);
+    } catch (e: any) {
+      return {
+        success: false,
+        reasoning: `Evaluation schema validation failed: ${e.message}. Raw: ${JSON.stringify(parsed)}`,
+      };
+    }
   }
 }

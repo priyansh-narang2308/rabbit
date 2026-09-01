@@ -132,7 +132,18 @@ export class DesktopPlanner {
       vision: true,
     });
 
-    const parsed = parseAction<Partial<DesktopAction>>(content);
-    return DesktopActionSchema.parse(parsed);
+    const parsed = parseAction<Partial<DesktopAction>>(
+      content,
+      ["click", "type", "wait", "done", "error"],
+    );
+    try {
+      return DesktopActionSchema.parse(parsed);
+    } catch (e: any) {
+      return {
+        type: "error",
+        message: `Schema validation failed: ${e.message}. Raw output: ${JSON.stringify(parsed)}`,
+        reasoning: "The model returned an invalid action structure.",
+      };
+    }
   }
 }

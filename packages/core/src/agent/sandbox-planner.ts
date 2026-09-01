@@ -117,6 +117,14 @@ export class SandboxPlanner {
       content,
       ["run_command", "done", "error"],
     );
-    return SandboxActionSchema.parse(parsed);
+    try {
+      return SandboxActionSchema.parse(parsed);
+    } catch (e: any) {
+      return {
+        type: "error",
+        message: `Schema validation failed: ${e.message}. Raw output: ${JSON.stringify(parsed)}`,
+        reasoning: "The model returned an invalid action structure.",
+      };
+    }
   }
 }

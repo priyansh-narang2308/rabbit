@@ -82,24 +82,40 @@ export async function groqChat(opts: GroqRequest): Promise<string> {
   // call tools anyway; we recover those below.
   body.response_format = { type: "json_object" };
 
-  const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
-      "X-Title": "Rabbit",
-    },
-    body: JSON.stringify(body),
-  });
+  let retries = 0;
+  const maxRetries = 3;
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Groq API error (${response.status}): ${errorBody}`);
+  while (true) {
+    const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/priyansh-narang2308/rabbit",
+        "X-Title": "Rabbit",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      if (response.status === 429 && retries < maxRetries) {
+        retries++;
+        let waitTimeMs = 5000; // default 5 seconds
+        const match = errorBody.match(/try again in ([\d\.]+)s/);
+        if (match && match[1]) {
+          waitTimeMs = Math.ceil(parseFloat(match[1]) * 1000) + 100; // add 100ms buffer
+        }
+        console.warn(`[Rabbit] Groq rate limit hit. Waiting ${waitTimeMs}ms before retry ${retries}/${maxRetries}...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTimeMs));
+        continue;
+      }
+      throw new Error(`Groq API error (${response.status}): ${errorBody}`);
+    }
+
+    const data = await response.json();
+    return extractGroqContent(data);
   }
-
-  const data = await response.json();
-  return extractGroqContent(data);
 }
 
 /**
