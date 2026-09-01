@@ -90,13 +90,10 @@ export class SandboxPlanner {
   private maxTokens: number;
 
   constructor(config: SandboxPlannerConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY;
-    if (!key) {
-      throw new Error("OPENROUTER_API_KEY is required to initialize SandboxPlanner");
-    }
+    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
     this.apiKey = key;
-    this.model = config.model || "meta-llama/llama-3.1-8b-instruct:free"; // text only model is fine for sandbox
-    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+    this.model = config.model || "gemma4:e2b";
+    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
     this.maxTokens = config.maxTokens || 1024;
   }
 
@@ -121,7 +118,6 @@ export class SandboxPlanner {
         messages,
         max_tokens: this.maxTokens,
         temperature: 0.2,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -139,7 +135,9 @@ export class SandboxPlanner {
       throw new Error("No content in LLM response");
     }
 
-    const parsed = JSON.parse(content);
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
+    const parsed = JSON.parse(cleanContent);
     return SandboxActionSchema.parse(parsed);
   }
 }

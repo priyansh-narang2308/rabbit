@@ -48,15 +48,10 @@ export class MultiEnvPlanner {
   private maxTokens: number;
 
   constructor(config: MultiEnvPlannerConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY;
-    if (!key) {
-      throw new Error(
-        "OPENROUTER_API_KEY is required to initialize MultiEnvPlanner",
-      );
-    }
+    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
     this.apiKey = key;
-    this.model = config.model || "meta-llama/llama-3.1-8b-instruct:free";
-    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+    this.model = config.model || "gemma4:e2b";
+    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
     this.maxTokens = config.maxTokens || 2048;
   }
 
@@ -81,7 +76,6 @@ export class MultiEnvPlanner {
         messages,
         max_tokens: this.maxTokens,
         temperature: 0.2,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -96,10 +90,12 @@ export class MultiEnvPlanner {
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      throw new Error("No content in LLM response");
+      throw new Error(`No content in LLM response. Full response: ${JSON.stringify(data.choices)}`);
     }
 
-    const parsed = JSON.parse(content);
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
+    const parsed = JSON.parse(cleanContent);
     return MultiEnvPlanSchema.parse(parsed);
   }
 }

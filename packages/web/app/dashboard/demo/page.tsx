@@ -709,7 +709,7 @@ function StatusBanner({
               : "border-yellow-500/50 bg-yellow-500/10 text-yellow-300"
       }`}
     >
-      <span className="font-medium capitalize">
+      <span className={`font-medium capitalize ${status === 'queued' || status === 'running' ? 'animate-pulse' : ''}`}>
         {status === "running"
           ? `Running — ${steps[0]?.actionType || "working"}...`
           : `${status}`}

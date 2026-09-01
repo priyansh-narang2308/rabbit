@@ -12,6 +12,7 @@ import { demoRouter } from "./routes/demo";
 import { eventsRouter } from "./queue/events";
 import { statusRouter } from "./routes/status";
 import { errorHandler } from "./middleware/error-handler";
+import "./queue/worker";
 
 const app = new Hono();
 

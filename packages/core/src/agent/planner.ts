@@ -129,13 +129,10 @@ export class Planner {
   private maxTokens: number;
 
   constructor(config: PlannerConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY;
-    if (!key) {
-      throw new Error("OPENROUTER_API_KEY is required to initialize Planner");
-    }
+    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
     this.apiKey = key;
-    this.model = config.model || "meta-llama/llama-3.2-90b-vision-instruct:free";
-    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+    this.model = config.model || "qwen3.5:2b";
+    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
     this.maxTokens = config.maxTokens || 1024;
   }
 
@@ -171,7 +168,6 @@ export class Planner {
         messages,
         max_tokens: this.maxTokens,
         temperature: 0.2,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -189,7 +185,9 @@ export class Planner {
       throw new Error("No content in LLM response");
     }
 
-    const parsed = JSON.parse(content);
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
+    const parsed = JSON.parse(cleanContent);
     const validated = ActionSchema.parse(parsed);
 
     return validated;

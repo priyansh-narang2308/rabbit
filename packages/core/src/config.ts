@@ -26,8 +26,8 @@ export const defaultConfig: RabbitConfig = {
     maxRetries: 3,
   },
   llm: {
-    model: "meta-llama/llama-3.2-90b-vision-instruct:free",
-    visionModel: "meta-llama/llama-3.2-90b-vision-instruct:free",
+    model: "gemma4:e2b",
+    visionModel: "qwen3.5:2b",
     temperature: 0.1,
     maxTokens: 1024,
   },

@@ -21,13 +21,10 @@ export class Evaluator {
   private baseUrl: string;
 
   constructor(config: EvaluatorConfig = {}) {
-    const key = config.apiKey || process.env.OPENROUTER_API_KEY;
-    if (!key) {
-      throw new Error("OPENROUTER_API_KEY is required to initialize Evaluator");
-    }
+    const key = config.apiKey || process.env.OPENROUTER_API_KEY || "ollama";
     this.apiKey = key;
-    this.model = config.model || "meta-llama/llama-3.2-90b-vision-instruct:free";
-    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+    this.model = config.model || "qwen3.5:2b";
+    this.baseUrl = config.baseUrl || "http://127.0.0.1:11434/v1";
   }
 
   async evaluate(action: Action, result: ExecutorResult): Promise<Evaluation> {
@@ -84,7 +81,6 @@ Current URL: ${result.url}`;
         messages,
         max_tokens: 512,
         temperature: 0.1,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -93,7 +89,10 @@ Current URL: ${result.url}`;
     }
 
     const data = await response.json();
-    const parsed = JSON.parse(data.choices[0].message.content);
+    const content = data.choices[0].message.content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    const cleanContent = jsonMatch ? jsonMatch[1] : content.trim();
+    const parsed = JSON.parse(cleanContent);
     
     return EvaluationSchema.parse(parsed);
   }
