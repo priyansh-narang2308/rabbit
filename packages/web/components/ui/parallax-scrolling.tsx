@@ -5,7 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "@studio-freight/lenis";
 import Link from "next/link";
-import { ArrowRight, Terminal } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function ParallaxComponent() {
   const parallaxRef = useRef<HTMLDivElement>(null);
@@ -64,11 +64,10 @@ export function ParallaxComponent() {
 
   return (
     <div className="parallax font-sans" ref={parallaxRef}>
-      {/* Absolute Navbar for the Demo */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/10 bg-black/30 backdrop-blur-md">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-3xl tracking-tight text-white font-[family-name:var(--font-caveat)]">
+            <span className="font-bold text-3xl tracking-tight text-white font-(family-name:--font-caveat)">
               Rabbit
             </span>
           </div>
@@ -106,7 +105,7 @@ export function ParallaxComponent() {
               data-parallax-layer="3"
               className="parallax__layer-title flex flex-col items-center justify-center"
             >
-              <h2 className="parallax__title bg-linear-to-b from-white to-gray-500 text-transparent bg-clip-text font-[family-name:var(--font-caveat)] font-normal tracking-normal lowercase capitalize pr-12">
+              <h2 className="parallax__title bg-linear-to-b from-white to-gray-500 text-transparent bg-clip-text font-(family-name:--font-caveat) font-normal tracking-normal capitalize pr-12">
                 Rabbit
               </h2>
             </div>
