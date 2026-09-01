@@ -1,23 +1,28 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import "dotenv/config";
 import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { logger } from "hono/logger";
+import { cors } from "hono/cors";
+import { db } from "./db";
+import { tasks } from "./db/schema";
 
 const app = new Hono();
 
 app.use("*", logger());
 app.use("*", cors());
 
-app.get("/health", (c) => {
-  return c.json({
-    status: "ok",
-    service: "rabbit-server",
-    timestamp: new Date().toISOString(),
-  });
+app.onError((err, c) => {
+  console.error("HTTP Error:", err);
+  return c.json({ error: err.message || "Internal Server Error" }, 500);
 });
 
-const port = 3001;
-console.log(`Rabbit server is running on port ${port}`);
+app.get("/health", async (c) => {
+  db.select().from(tasks).limit(1).all();
+  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+console.log(`Rabbit Server running on port ${port}`);
 
 serve({
   fetch: app.fetch,
