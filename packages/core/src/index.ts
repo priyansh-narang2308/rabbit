@@ -4,3 +4,4 @@ export * from "./solari/desktop-manager";
 export * from "./agent/planner";
 export * from "./agent/executor";
 export * from "./agent/evaluator";
+export * from "./audit/trail";
